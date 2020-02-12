@@ -5,7 +5,7 @@ The judge client of next-generation SYZOJ.
 * Download files from server automatically.
 * Run multiple tasks of multiple submissions in the same time.
 * Cache compiled binary files to save judging time.
-* Security and resources limitting powered by [syzoj-sandbox](https://github.com/syzoj/syzoj-sandbox).
+* Security and resources limitting powered by [simple-sandbox](https://github.com/t123yh/simple-sandbox).
 
 These features are on the plan:
 
