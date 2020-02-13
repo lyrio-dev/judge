@@ -1,5 +1,5 @@
 import { join } from "path";
-import { SandboxStatus } from "syzoj-sandbox";
+import { SandboxStatus } from "simple-sandbox";
 import objectHash = require("object-hash");
 import fs = require("fs-extra");
 import du = require("du");

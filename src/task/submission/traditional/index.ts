@@ -4,7 +4,7 @@ import fs = require("fs-extra");
 import uuid = require("uuid/v4");
 import du = require("du");
 import winston = require("winston");
-import { SandboxStatus } from "syzoj-sandbox";
+import { SandboxStatus } from "simple-sandbox";
 
 import { SubmissionTask, SubmissionStatus } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";

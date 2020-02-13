@@ -1,4 +1,4 @@
-import * as Sandbox from "syzoj-sandbox";
+import * as Sandbox from "simple-sandbox";
 import * as uuid from "uuid/v4";
 import * as fs from "fs-extra";
 import { join } from "path";
