@@ -1,4 +1,5 @@
 # Just build. We don't have tests.
+dist: bionic
 language: node_js
 before_install:
   - sudo apt-get update
