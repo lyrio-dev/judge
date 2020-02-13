@@ -1,4 +1,8 @@
 # SYZOJ NG Judge
+
+[![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg?style=flat-square)](http://commitizen.github.io/cz-cli/)
+[![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
+
 The judge client of next-generation SYZOJ.
 
 # Features
