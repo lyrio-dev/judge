@@ -1,5 +1,7 @@
 # Just build. We don't have tests.
 language: node_js
+before_install:
+  - sudo apt-get -y install g++-8 libfmt-dev
 env:
   - CXX=g++-8
 node_js:
