@@ -29,9 +29,9 @@
     "prettier": "^1.19.1",
     "promise-queue": "^2.2.5",
     "reflect-metadata": "^0.1.13",
+    "simple-sandbox": "^0.3.9",
     "socket.io-client": "^2.3.0",
     "systeminformation": "^4.21.2",
-    "simple-sandbox": "^0.3.9",
     "toposort": "^2.0.2",
     "ts-node": "^8.6.2",
     "tsconfig-paths": "^3.9.0",
@@ -43,5 +43,13 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\"",
     "start": "ts-node -r tsconfig-paths/register src/index"
+  },
+  "devDependencies": {
+    "cz-conventional-changelog": "3.1.0"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
   }
 }
