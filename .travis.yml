@@ -1,0 +1,6 @@
+# Just build. We don't have tests.
+language: node_js
+env:
+  - CXX=g++-8
+node_js:
+  - lts/*

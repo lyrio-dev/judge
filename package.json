@@ -42,6 +42,7 @@
   },
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\"",
+    "test": "tsc --noEmit -p .",
     "start": "ts-node -r tsconfig-paths/register src/index"
   },
   "devDependencies": {
