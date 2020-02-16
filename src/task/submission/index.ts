@@ -65,6 +65,7 @@ export interface SubmissionProgress<TestcaseResult> {
   testcaseResult?: Record<string, TestcaseResult>;
   subtasks?: {
     score: number;
+    fullScore: number;
     testcases: {
       // If !waiting && !running && !testcaseHash, it's "Skipped"
       waiting?: boolean;
@@ -79,7 +80,7 @@ export interface SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>
   reportProgress: {
     compiling(): void;
     compiled(compile: { success: boolean; message: string }): void;
-    startedRunning(): void;
+    startedRunning(subtaskFullScores: number[]): void;
     testcaseRunning(subtaskIndex: number, testcaseIndex: number): void;
     testcaseFinished(subtaskIndex: number, testcaseIndex: number, result: TestcaseResult): void;
     subtaskScoreUpdated(subtaskIndex: number, newScore: number): void;
@@ -139,12 +140,13 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
         if (finished) return;
         progress.compile = compile;
       },
-      startedRunning() {
+      startedRunning(subtaskFullScores: number[]) {
         if (finished) return;
         progress.progressType = SubmissionProgressType.Running;
         progress.testcaseResult = {};
         progress.subtasks = [...new Array(problemTypeHandler.getSubtaskCount(judgeInfo)).keys()].map(subtaskIndex => ({
           score: null,
+          fullScore: subtaskFullScores[subtaskIndex],
           testcases: [...new Array(problemTypeHandler.getTestcaseCountOfSubtask(judgeInfo, subtaskIndex)).keys()].map(
             () => ({
               waiting: true
@@ -173,7 +175,7 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
       },
       subtaskScoreUpdated(subtaskIndex: number, newScore: number) {
         if (finished) return;
-        progress.subtasks[subtaskIndex].score = newScore;
+        progress.subtasks[subtaskIndex].score = (newScore * progress.subtasks[subtaskIndex].fullScore) / 100;
         task.reportProgressRaw(progress);
       },
       finished(status: SubmissionStatus, score: number) {

@@ -250,8 +250,6 @@ export async function runTask(
   }
 
   try {
-    task.reportProgress.startedRunning();
-
     const judgeInfo = task.extraInfo.judgeInfo;
 
     const sumSpecfiedPercentagePointsForSubtasks = judgeInfo.subtasks
@@ -263,6 +261,11 @@ export async function runTask(
     ).length;
     const defaultPercentagePointsForSubtasks =
       (100 - sumSpecfiedPercentagePointsForSubtasks) / countUnspecfiedPercentagePointsForSubtasks;
+
+    const subtaskFullScores = judgeInfo.subtasks.map(subtask =>
+      subtask.percentagePoints != null ? subtask.percentagePoints : defaultPercentagePointsForSubtasks
+    );
+    task.reportProgress.startedRunning(subtaskFullScores);
 
     const subtaskOrder = getSubtaskOrder(judgeInfo);
     const subtaskScores: number[] = new Array(subtaskOrder.length);
@@ -338,7 +341,7 @@ export async function runTask(
       }
 
       subtaskScores[subtaskIndex] = subtaskScore;
-      totalScore += (subtaskScore * (subtask.percentagePoints || defaultPercentagePointsForSubtasks)) / 100;
+      totalScore += (subtaskScore * subtaskFullScores[subtaskIndex]) / 100;
     }
 
     const roundedScore = Math.round(totalScore);
