@@ -344,11 +344,11 @@ export async function runTask(
       totalScore += (subtaskScore * subtaskFullScores[subtaskIndex]) / 100;
     }
 
-    const roundedScore = Math.round(totalScore);
+    const roundedScore = totalScore > 100 ? 100 : Math.round(totalScore);
     if (firstNonAcceptedStatus === null && roundedScore !== 100) {
       // This shouldn't happen
       throw new Error("Couldn't determine submission result status");
-    } else if (roundedScore === 100) {
+    } else if (firstNonAcceptedStatus === null) {
       task.reportProgress.finished(SubmissionStatus.Accepted, roundedScore);
     } else {
       task.reportProgress.finished((firstNonAcceptedStatus as unknown) as SubmissionStatus, roundedScore);
