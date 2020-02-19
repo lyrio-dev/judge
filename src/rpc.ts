@@ -21,8 +21,8 @@ export class RPC {
       this.socket.close();
     }
 
-    this.socket = SocketIO(config.serverUrl, {
-      path: "/api/socket/judge",
+    this.socket = SocketIO(config.serverUrl + "judge", {
+      path: "/api/socket",
       reconnection: true,
       transports: ["websocket"],
       query: {
