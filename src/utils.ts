@@ -59,3 +59,10 @@ export async function readFileOmitted(filePath: string, lengthLimit: number): Pr
     }
   }
 }
+
+export function stringToOmited(str: string, lengthLimit: number) {
+  if (str.length <= lengthLimit) return str;
+
+  const omitted = str.length - lengthLimit;
+  return str.substr(0, lengthLimit) + `\n<${omitted} byte${omitted != 1 ? "s" : ""} omitted>`;
+}

@@ -6,14 +6,14 @@ import du = require("du");
 import winston = require("winston");
 import { SandboxStatus } from "simple-sandbox";
 
-import { SubmissionTask, SubmissionStatus } from "@/task/submission";
+import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
 import { JudgeInfoTraditional, TestcaseConfig } from "./judgeInfo";
 import { runTaskQueued } from "@/taskQueue";
 import { startSandbox } from "@/sandbox";
 import getLanguage from "@/languages";
 import config from "@/config";
-import { readFileOmitted } from "@/utils";
+import { readFileOmitted, stringToOmited } from "@/utils";
 import { getFile } from "@/file";
 
 export * from "./judgeInfo";
@@ -56,6 +56,7 @@ export interface SubmissionContentTraditional {
   language: string;
   code: string;
   languageOptions: unknown;
+  skipSamples?: boolean;
 }
 
 function getSubtaskOrder(judgeInfo: JudgeInfoTraditional) {
@@ -71,24 +72,42 @@ function getSubtaskOrder(judgeInfo: JudgeInfoTraditional) {
 const SANDBOX_INSIDE_PATH_BINARY = "/sandbox/binary";
 const SANDBOX_INSIDE_PATH_WORKING = "/sandbox/working";
 
+/**
+ * Run a subtask testcase or sample testcase.
+ *
+ * @param sampleId If not null, it's a sample testcase.
+ * @param subtaskIndex If not null, it's a subtask testcase.
+ */
 async function runTestcase(
   task: SubmissionTask<JudgeInfoTraditional, SubmissionContentTraditional, TestcaseResultTraditional>,
   judgeInfo: JudgeInfoTraditional,
+  sampleId: number,
+  sample: ProblemSample,
   subtaskIndex: number,
   testcaseIndex: number,
   testcase: TestcaseConfig,
   compileResult: CompileResultSuccess
 ): Promise<TestcaseResultTraditional> {
   return await runTaskQueued(async (taskWorkingDirectory: string) => {
-    winston.verbose(`Running testcase ${subtaskIndex}.${testcaseIndex}`);
-    task.reportProgress.testcaseRunning(subtaskIndex, testcaseIndex);
+    const isSample = sampleId != null;
+
+    const timeLimit = isSample ? judgeInfo.timeLimit : testcase.timeLimit;
+    const memoryLimit = isSample ? judgeInfo.memoryLimit : testcase.memoryLimit;
+
+    if (isSample) {
+      winston.verbose(`Running sample testcase ${sampleId}`);
+      task.reportProgress.sampleTestcaseRunning(sampleId);
+    } else {
+      winston.verbose(`Running testcase ${subtaskIndex}.${testcaseIndex}`);
+      task.reportProgress.testcaseRunning(subtaskIndex, testcaseIndex);
+    }
 
     const result: TestcaseResultTraditional = {
       testcaseInfo: {
-        timeLimit: testcase.timeLimit,
-        memoryLimit: testcase.memoryLimit,
-        inputFilename: testcase.inputFilename,
-        outputFilename: testcase.outputFilename
+        timeLimit: timeLimit,
+        memoryLimit: memoryLimit,
+        inputFilename: isSample ? null : testcase.inputFilename,
+        outputFilename: isSample ? null : testcase.outputFilename
       },
       status: null,
       score: 0
@@ -107,7 +126,8 @@ async function runTestcase(
     const inputFilePath = join(workingDirectory, inputFilename);
     const inputFilePathInside = join(workingDirectoryInside, inputFilename);
 
-    await fs.copy(getFile(task.extraInfo.testData[testcase.inputFilename]), inputFilePath);
+    if (isSample) await fs.writeFile(inputFilePath, sample.inputData);
+    else await fs.copy(getFile(task.extraInfo.testData[testcase.inputFilename]), inputFilePath);
 
     const outputFilename = judgeInfo.fileIo ? judgeInfo.fileIo.outputFilename : uuid();
     const outputFilePath = join(workingDirectory, outputFilename);
@@ -124,14 +144,14 @@ async function runTestcase(
           binaryDirectoryInside,
           workingDirectoryInside,
           task.extraInfo.submissionContent.languageOptions,
-          testcase.timeLimit,
-          testcase.memoryLimit,
+          timeLimit,
+          memoryLimit,
           judgeInfo.fileIo ? null : inputFilePathInside,
           judgeInfo.fileIo ? null : outputFilePathInside,
           stderrFilePathInside
         ),
-        time: testcase.timeLimit,
-        memory: testcase.memoryLimit * 1024 * 1024,
+        time: timeLimit,
+        memory: memoryLimit * 1024 * 1024,
         workingDirectory: workingDirectoryInside
       },
       tempDirectory,
@@ -167,11 +187,12 @@ async function runTestcase(
       result.status = TestcaseStatusTraditional.FileError;
     }
 
-    result.input = await readFileOmitted(inputFilePath, config.limit.dataDisplay);
-    result.output = await readFileOmitted(
-      getFile(task.extraInfo.testData[testcase.outputFilename]),
-      config.limit.dataDisplay
-    );
+    result.input = isSample
+      ? stringToOmited(sample.inputData, config.limit.dataDisplay)
+      : await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFilename]), config.limit.dataDisplay);
+    result.output = isSample
+      ? stringToOmited(sample.outputData, config.limit.dataDisplay)
+      : await readFileOmitted(getFile(task.extraInfo.testData[testcase.outputFilename]), config.limit.dataDisplay);
     result.userOutput = await readFileOmitted(outputFilePath, config.limit.dataDisplay);
     result.userError = await readFileOmitted(stderrFilePath, config.limit.stderrDisplay);
     result.time = sandboxResult.time / 1e6;
@@ -183,7 +204,8 @@ async function runTestcase(
       const answerFilePath = join(workingDirectory, answerFilename);
       const answerFilePathInside = join(workingDirectoryInside, answerFilename);
 
-      await fs.copy(getFile(task.extraInfo.testData[testcase.outputFilename]), answerFilePath);
+      if (isSample) await fs.writeFile(answerFilePath, sample.outputData);
+      else await fs.copy(getFile(task.extraInfo.testData[testcase.outputFilename]), answerFilePath);
 
       // const graderOutputFilename = uuid();
       // const graderOutputFilePath = join(workingDirectory, graderOutputFilename);
@@ -220,9 +242,14 @@ async function runTestcase(
         result.status = TestcaseStatusTraditional.WrongAnswer;
       }
     }
-    task.reportProgress.testcaseFinished(subtaskIndex, testcaseIndex, result);
 
-    winston.verbose(`Finished testcase ${subtaskIndex}.${testcaseIndex}: ${JSON.stringify(result)}`);
+    if (isSample) {
+      task.reportProgress.sampleTestcaseFinished(sampleId, sample, result);
+      winston.verbose(`Finished testcase ${subtaskIndex}.${testcaseIndex}: ${JSON.stringify(result)}`);
+    } else {
+      task.reportProgress.testcaseFinished(subtaskIndex, testcaseIndex, result);
+      winston.verbose(`Finished sample testcase ${sampleId}: ${JSON.stringify(result)}`);
+    }
 
     return result;
   });
@@ -251,6 +278,7 @@ export async function runTask(
 
   try {
     const judgeInfo = task.extraInfo.judgeInfo;
+    const samples = task.extraInfo.samples;
 
     const sumSpecfiedPercentagePointsForSubtasks = judgeInfo.subtasks
       .map(testcase => testcase.percentagePoints)
@@ -265,16 +293,41 @@ export async function runTask(
     const subtaskFullScores = judgeInfo.subtasks.map(subtask =>
       subtask.percentagePoints != null ? subtask.percentagePoints : defaultPercentagePointsForSubtasks
     );
-    task.reportProgress.startedRunning(subtaskFullScores);
+
+    const runSamples = judgeInfo.runSamples && samples && !task.extraInfo.submissionContent.skipSamples ? true : false;
+    task.reportProgress.startedRunning(runSamples && samples.length, subtaskFullScores);
+
+    let firstNonAcceptedStatus: TestcaseStatusTraditional = null;
+
+    // Run samples first
+    let samplesFailed = false;
+    if (runSamples) {
+      for (const i in samples) {
+        if (samplesFailed) {
+          task.reportProgress.sampleTestcaseFinished(Number(i), samples[i], null);
+          continue;
+        }
+
+        const result = await runTestcase(task, judgeInfo, Number(i), samples[i], null, null, null, compileResult);
+        if (result.status !== TestcaseStatusTraditional.Accepted) {
+          samplesFailed = true;
+          firstNonAcceptedStatus = result.status;
+        }
+      }
+    }
 
     const subtaskOrder = getSubtaskOrder(judgeInfo);
     const subtaskScores: number[] = new Array(subtaskOrder.length);
-    let firstNonAcceptedStatus: TestcaseStatusTraditional = null;
     let totalScore = 0;
     for (const subtaskIndex of subtaskOrder) {
       const subtask = judgeInfo.subtasks[subtaskIndex];
 
-      if (Array.isArray(subtask.dependencies) && subtask.dependencies.some(i => Math.round(subtaskScores[i]) === 0)) {
+      // If samples failed, skip all subtasks
+      // If any of a subtask's dependencies failed, skip it
+      if (
+        samplesFailed ||
+        (Array.isArray(subtask.dependencies) && subtask.dependencies.some(i => Math.round(subtaskScores[i]) === 0))
+      ) {
         // Skip
         task.reportProgress.subtaskScoreUpdated(subtaskIndex, 0);
         for (const i in subtask.testcases) {
@@ -308,7 +361,16 @@ export async function runTask(
       if (subtask.scoringType === "Sum") {
         results = await Promise.all(
           normalizedTestcases.map(async (testcase, i) => {
-            const result = await runTestcase(task, judgeInfo, subtaskIndex, Number(i), testcase, compileResult);
+            const result = await runTestcase(
+              task,
+              judgeInfo,
+              null,
+              null,
+              subtaskIndex,
+              Number(i),
+              testcase,
+              compileResult
+            );
             subtaskScore += (result.score * normalizedTestcases[i].percentagePoints) / 100;
             task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
             return result;
@@ -322,7 +384,16 @@ export async function runTask(
           if (Math.round(subtaskScore) === 0) {
             task.reportProgress.testcaseFinished(subtaskIndex, Number(i), null);
           } else {
-            const result = await runTestcase(task, judgeInfo, subtaskIndex, Number(i), testcase, compileResult);
+            const result = await runTestcase(
+              task,
+              judgeInfo,
+              null,
+              null,
+              subtaskIndex,
+              Number(i),
+              testcase,
+              compileResult
+            );
             if (subtask.scoringType === "GroupMin") subtaskScore = Math.min(subtaskScore, result.score);
             else subtaskScore = (subtaskScore * result.score) / 100;
             task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);

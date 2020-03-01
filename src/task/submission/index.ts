@@ -9,9 +9,15 @@ enum ProblemType {
   TRADITIONAL = "TRADITIONAL"
 }
 
+export interface ProblemSample {
+  inputData: string;
+  outputData: string;
+}
+
 export interface SubmissionExtraInfo<JudgeInfo, SubmissionContent> {
   problemType: ProblemType;
   judgeInfo: JudgeInfo;
+  samples?: ProblemSample[];
   testData: Record<string, string>; // filename -> uuid
   submissionContent: SubmissionContent;
 }
@@ -45,6 +51,13 @@ export enum SubmissionStatus {
   JudgementFailed = "JudgementFailed"
 }
 
+interface TestcaseProgressReference {
+  // If !waiting && !running && !testcaseHash, it's "Skipped"
+  waiting?: boolean;
+  running?: boolean;
+  testcaseHash?: string;
+}
+
 export interface SubmissionProgress<TestcaseResult> {
   progressType: SubmissionProgressType;
 
@@ -59,19 +72,16 @@ export interface SubmissionProgress<TestcaseResult> {
 
   systemMessage?: string;
 
-  // testcaseHash = hash(IF, OF, ML, TL) for traditional
+  // testcaseHash = hash(IF, OF, TL, ML) for traditional
+  //                hash(ID, OD, TL, ML) for samples
   // ->
   // result
   testcaseResult?: Record<string, TestcaseResult>;
+  samples?: TestcaseProgressReference[];
   subtasks?: {
     score: number;
     fullScore: number;
-    testcases: {
-      // If !waiting && !running && !testcaseHash, it's "Skipped"
-      waiting?: boolean;
-      running?: boolean;
-      testcaseHash?: string;
-    }[];
+    testcases: TestcaseProgressReference[];
   }[];
 }
 
@@ -80,7 +90,9 @@ export interface SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>
   reportProgress: {
     compiling(): void;
     compiled(compile: { success: boolean; message: string }): void;
-    startedRunning(subtaskFullScores: number[]): void;
+    startedRunning(samplesCount: number, subtaskFullScores: number[]): void;
+    sampleTestcaseRunning(sampleId: number): void;
+    sampleTestcaseFinished(sampleId: number, sample: ProblemSample, result: TestcaseResult): void;
     testcaseRunning(subtaskIndex: number, testcaseIndex: number): void;
     testcaseFinished(subtaskIndex: number, testcaseIndex: number, result: TestcaseResult): void;
     subtaskScoreUpdated(subtaskIndex: number, newScore: number): void;
@@ -93,6 +105,7 @@ export interface SubmissionHandler<JudgeInfo, SubmissionContent, TestcaseResult>
   getSubtaskCount: (judgeInfo: JudgeInfo) => number;
   getTestcaseCountOfSubtask: (judgeInfo: JudgeInfo, subtaskIndex: number) => number;
   hashTestcase: (judgeInfo: JudgeInfo, subtaskIndex: number, testcaseIndex: number) => string;
+  hashSampleTestcase: (judgeInfo: JudgeInfo, sample: ProblemSample) => string;
 
   runTask: (task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>) => Promise<void>;
 }
@@ -140,10 +153,15 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
         if (finished) return;
         progress.compile = compile;
       },
-      startedRunning(subtaskFullScores: number[]) {
+      startedRunning(samplesCount: number, subtaskFullScores: number[]) {
         if (finished) return;
         progress.progressType = SubmissionProgressType.Running;
         progress.testcaseResult = {};
+        if (samplesCount) {
+          progress.samples = [...new Array(samplesCount)].map(() => ({
+            waiting: true
+          }));
+        }
         progress.subtasks = [...new Array(problemTypeHandler.getSubtaskCount(judgeInfo)).keys()].map(subtaskIndex => ({
           score: null,
           fullScore: subtaskFullScores[subtaskIndex],
@@ -153,6 +171,24 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
             })
           )
         }));
+        task.reportProgressRaw(progress);
+      },
+      sampleTestcaseRunning(sampleId: number) {
+        if (finished) return;
+        delete progress.samples[sampleId].waiting;
+        progress.samples[sampleId].running = true;
+        task.reportProgressRaw(progress);
+      },
+      sampleTestcaseFinished(sampleId: number, sample: ProblemSample, result: unknown) {
+        if (finished) return;
+        delete progress.samples[sampleId].waiting;
+        delete progress.samples[sampleId].running;
+        if (result) {
+          // If not "Skipped"
+          const testcaseHash = problemTypeHandler.hashSampleTestcase(judgeInfo, sample);
+          progress.samples[sampleId].testcaseHash = testcaseHash;
+          progress.testcaseResult[testcaseHash] = result;
+        }
         task.reportProgressRaw(progress);
       },
       testcaseRunning(subtaskIndex: number, testcaseIndex: number) {

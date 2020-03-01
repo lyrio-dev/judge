@@ -2,7 +2,7 @@ import objectHash = require("object-hash");
 import toposort = require("toposort");
 import validFilename = require("valid-filename");
 
-import { SubmissionTask } from "@/task/submission";
+import { SubmissionTask, ProblemSample } from "@/task/submission";
 import { SubmissionContentTraditional, TestcaseResultTraditional } from ".";
 
 export interface TestcaseConfig {
@@ -73,7 +73,7 @@ export interface JudgeInfoTraditional {
 export async function validateJudgeInfo(
   task: SubmissionTask<JudgeInfoTraditional, SubmissionContentTraditional, TestcaseResultTraditional>
 ): Promise<void> {
-  function validateLimit(limit: number) {
+  function validateLimit(limit: number, mustExists: boolean = false) {
     if (!limit || (typeof limit === "number" && limit > 0)) return;
     throw `Invalid limit value: ${limit}`;
   }
@@ -105,8 +105,8 @@ export async function validateJudgeInfo(
   }
 
   const judgeInfo = task.extraInfo.judgeInfo;
-  validateLimit(judgeInfo.timeLimit);
-  validateLimit(judgeInfo.memoryLimit);
+  validateLimit(judgeInfo.timeLimit, true);
+  validateLimit(judgeInfo.memoryLimit, true);
   if (judgeInfo.fileIo) {
     if (typeof judgeInfo.fileIo.inputFilename !== "string") throw "fileIo.inputFilename should be string";
     if (typeof judgeInfo.fileIo.outputFilename !== "string") throw "fileIo.outputFilename should be string";
@@ -174,11 +174,26 @@ export function getTestcaseCountOfSubtask(judgeInfo: JudgeInfoTraditional, subta
   return judgeInfo.subtasks[subtaskIndex].testcases.length;
 }
 
+export function hashSampleTestcase(judgeInfo: JudgeInfoTraditional, sample: ProblemSample) {
+  return objectHash({
+    inputData: sample.inputData,
+    outputData: sample.outputData,
+    timeLimit: judgeInfo.timeLimit,
+    memoryLimit: judgeInfo.memoryLimit
+  });
+}
+
 export function hashTestcase(judgeInfo: JudgeInfoTraditional, subtaskIndex: number, testcaseIndex: number) {
   return objectHash({
     inputFilename: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].inputFilename,
     outputFilename: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].outputFilename,
-    memoryLimit: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].memoryLimit || 0,
-    timeLimit: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].timeLimit || 0
+    timeLimit:
+      judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].timeLimit ||
+      judgeInfo.subtasks[subtaskIndex].timeLimit ||
+      judgeInfo.timeLimit,
+    memoryLimit:
+      judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].memoryLimit ||
+      judgeInfo.subtasks[subtaskIndex].memoryLimit ||
+      judgeInfo.memoryLimit
   });
 }
