@@ -1915,10 +1915,10 @@ supports-color@^5.3.0:
   dependencies:
     has-flag "^3.0.0"
 
-systeminformation@^4.21.2:
-  version "4.21.2"
-  resolved "https://registry.yarnpkg.com/systeminformation/-/systeminformation-4.21.2.tgz#0ee92c0565687a5301ba141444643b43d0370ae2"
-  integrity sha512-7O6laxHTstfj9MSrX77lKLfWz0zqqutWL0+uoJkR7sOOr4XCTwD0QG4shUVCiOWlVX+a8/gHJUio420FrSk8/w==
+systeminformation@^4.21.3:
+  version "4.23.0"
+  resolved "https://registry.yarnpkg.com/systeminformation/-/systeminformation-4.23.0.tgz#9a38262d3f6c2db4b7b5abd4808a2035c8a162c2"
+  integrity sha512-Gx24ttVOuqKpaGJ5bMYOt/Y7VTntc/Du6h0oh1evKPjxXdSeAcwk1+xsTxEizN3+ZuuVyoHl5hV0jtlHDOGeYA==
 
 text-hex@1.0.x:
   version "1.0.0"
