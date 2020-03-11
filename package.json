@@ -24,7 +24,7 @@
     "klaw": "^3.0.0",
     "lodash.debounce": "^4.0.8",
     "lru-cache": "^5.1.1",
-    "object-hash": "^2.0.2",
+    "object-hash": "^2.0.3",
     "posix": "^4.2.0",
     "prettier": "^1.19.1",
     "promise-queue": "^2.2.5",
