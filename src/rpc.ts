@@ -131,7 +131,7 @@ export class RPC {
       }
 
       const { task, ack } = taskOrDisconnect;
-      const taskInfo = `{ id: ${task.id}, type: ${task.type}, uuid: "${task.uuid}" }`;
+      const taskInfo = `{ taskId: ${task.taskId}, type: ${task.type} }`;
       winston.info(`[Thread ${threadId}] Got task: ${taskInfo}`);
 
       // Debounce the onProgress function so we won't send progress too fast to the server
@@ -145,7 +145,7 @@ export class RPC {
         winston.verbose(`[Thread ${threadId}] Reporting progress for task ${taskInfo}`);
         this.socket.emit("progress", {
           taskMeta: {
-            id: task.id,
+            taskId: task.taskId,
             type: task.type
           },
           progress

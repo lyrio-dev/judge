@@ -232,6 +232,8 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
       status: isConfigurationError ? SubmissionStatus.ConfigurationError : SubmissionStatus.SystemError,
       systemMessage: e.message
     });
-    winston.error(`${isConfigurationError ? "ConfigurationError" : "Error"} on submission ${task.id}, ${e.stack}`);
+    winston.error(
+      `${isConfigurationError ? "ConfigurationError" : "Error"} on submission task ${task.taskId}, ${e.stack}`
+    );
   }
 }

@@ -7,12 +7,11 @@ export enum TaskType {
 }
 
 export interface TaskMeta {
-  id: number;
+  taskId: string;
   type: TaskType;
 }
 
 export type Task<TaskExtraInfo, Progress> = TaskMeta & {
-  uuid: string;
   // The priority is not important for judge clients
   // It's handled by the judge queue on the server
   priority: number;
