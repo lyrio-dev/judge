@@ -10,7 +10,7 @@ import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submissi
 import { compile, CompileResultSuccess } from "@/compile";
 import { JudgeInfoTraditional, TestcaseConfig } from "./judgeInfo";
 import { runTaskQueued } from "@/taskQueue";
-import { startSandbox } from "@/sandbox";
+import { runSandbox } from "@/sandbox";
 import getLanguage from "@/languages";
 import config from "@/config";
 import { readFileOmitted, stringToOmited } from "@/utils";
@@ -138,7 +138,8 @@ async function runTestcase(
     const stderrFilePathInside = join(workingDirectoryInside, stderrFilename);
 
     const languageConfig = getLanguage(task.extraInfo.submissionContent.language);
-    const sandbox = await startSandbox(
+    const sandboxResult = await runSandbox(
+      task.taskId,
       {
         ...languageConfig.run(
           binaryDirectoryInside,
@@ -168,7 +169,6 @@ async function runTestcase(
         }
       ]
     );
-    const sandboxResult = await sandbox.waitForStop();
 
     const workingDirectorySize = await du(workingDirectory);
     const inputFileSize = await du(inputFilePath);
@@ -212,7 +212,8 @@ async function runTestcase(
       // const graderOutputFilePathInside = join(workingDirectoryInside, graderOutputFilename);
 
       // TODO: custom grader
-      const graderSandbox = await startSandbox(
+      const graderSandboxResult = await runSandbox(
+        task.taskId,
         {
           executable: "/usr/bin/diff",
           time: 5000,
@@ -231,7 +232,6 @@ async function runTestcase(
           }
         ]
       );
-      const graderSandboxResult = await graderSandbox.waitForStop();
       if (graderSandboxResult.status !== SandboxStatus.OK) {
         result.status = TestcaseStatusTraditional.JudgementFailed;
         result.systemMessage = `Grader encountered a ${SandboxStatus[graderSandboxResult.status]}`;

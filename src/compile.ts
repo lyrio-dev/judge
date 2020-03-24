@@ -9,7 +9,7 @@ import uuid = require("uuid");
 
 import getLanguage, { LanguageConfig } from "./languages";
 import { ensureDirectoryEmpty, readFileOmitted } from "./utils";
-import { ExecuteParameters, startSandbox } from "./sandbox";
+import { ExecuteParameters, runSandbox } from "./sandbox";
 import config from "./config";
 import { runTaskQueued } from "./taskQueue";
 
@@ -195,7 +195,7 @@ async function doCompile(
     binaryDirectoryInside,
     compileTask.languageOptions
   );
-  const sandbox = await startSandbox(executeParameters, tempDirectory, [
+  const sandboxResult = await runSandbox(null, executeParameters, tempDirectory, [
     {
       outsidePath: sourceDirectory,
       insidePath: sourceDirectoryInside,
@@ -207,8 +207,6 @@ async function doCompile(
       readOnly: false
     }
   ]);
-
-  const sandboxResult = await sandbox.waitForStop();
 
   const messageFilePath = join(binaryDirectory, messageFile);
   const message = (await readFileOmitted(messageFilePath, config.limit.compilerMessage)) || "";

@@ -3,7 +3,7 @@ import { ensureFiles } from "@/file";
 import winston = require("winston");
 
 import * as Traditional from "./traditional";
-import { ConfigurationError } from "@/error";
+import { ConfigurationError, CanceledError } from "@/error";
 
 enum ProblemType {
   TRADITIONAL = "TRADITIONAL"
@@ -34,6 +34,7 @@ export enum SubmissionStatus {
 
   ConfigurationError = "ConfigurationError",
   SystemError = "SystemError",
+  Canceled = "Canceled",
 
   CompilationError = "CompilationError",
 
@@ -226,6 +227,12 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
 
     await problemTypeHandlers[task.extraInfo.problemType].runTask(task);
   } catch (e) {
+    const isCanceled = e instanceof CanceledError;
+    if (isCanceled) {
+      // A canceled submission doesn't need futher reports
+      throw e;
+    }
+
     const isConfigurationError = e instanceof ConfigurationError;
     task.reportProgressRaw({
       progressType: SubmissionProgressType.Finished,

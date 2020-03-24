@@ -6,10 +6,19 @@ import config from "./config";
 import { Task } from "./task";
 import taskHandler from "./task";
 import getSystemInfo from "./systemInfo";
+import { CanceledError } from "./error";
 
 export class RPC {
   private socket: SocketIOClient.Socket;
   private ready: boolean = false;
+
+  /**
+   * For each task:
+   * * Functions to stop all the sandboxes and reject sandbox promises with CanceledErrors
+   *   if the task is running sandboxes
+   * * Otherwise a empty set
+   */
+  private pendingTaskCancelCallback: Map<string, Set<() => void>> = new Map();
 
   constructor() {}
 
@@ -47,10 +56,36 @@ export class RPC {
       this.socket.emit("systemInfo", await getSystemInfo());
     });
 
+    this.socket.on("cancel", (taskId: string) => this.cancelTask(taskId));
+
     this.socket.on("authenticationFailed", () => {
       winston.error("Failed to authentication to server, please check your key");
       process.exit(1);
     });
+  }
+
+  onCancel(taskId: string, callback: () => void): () => void {
+    const callbacks = this.pendingTaskCancelCallback.get(taskId);
+    callbacks.add(callback);
+    return () => callbacks.delete(callback);
+  }
+
+  private cancelTask(taskId: string) {
+    winston.info(`Canceling task ${taskId}`);
+    const callbacks = this.pendingTaskCancelCallback.get(taskId);
+    this.pendingTaskCancelCallback.delete(taskId);
+    callbacks.forEach(f => f());
+  }
+
+  isCanceled(taskId: string) {
+    return this.pendingTaskCancelCallback.has(taskId);
+  }
+
+  ensureNotCanceled(taskId: string) {
+    if (!this.isCanceled(taskId)) {
+      winston.info(`Task ${taskId} canceled`);
+      throw new CanceledError();
+    }
   }
 
   async ensureReady() {
@@ -134,8 +169,10 @@ export class RPC {
       const taskInfo = `{ taskId: ${task.taskId}, type: ${task.type} }`;
       winston.info(`[Thread ${threadId}] Got task: ${taskInfo}`);
 
+      this.pendingTaskCancelCallback.set(task.taskId, new Set());
+
       // Debounce the onProgress function so we won't send progress too fast to the server
-      task.reportProgressRaw = lodashDebounce(async (progress: unknown) => {
+      const reportProgress = lodashDebounce(async (progress: unknown) => {
         await this.ensureReady();
         if (this.socket.id !== currentConnection) {
           winston.warn(`Ignoring progress reporting for task ${taskInfo} since reconnected`);
@@ -151,7 +188,20 @@ export class RPC {
           progress
         });
       }, 100);
-      await taskHandler(task);
+      task.reportProgressRaw = (progress: unknown) => {
+        this.ensureNotCanceled(task.taskId);
+        reportProgress(progress);
+      };
+
+      try {
+        await taskHandler(task);
+      } catch (e) {
+        if (!(e instanceof CanceledError)) {
+          winston.error(`Unexpected error caught from taskHandler: ${e}`);
+        }
+      }
+
+      this.pendingTaskCancelCallback.delete(task.taskId);
 
       // If the connection fails, don't attempt to emit ack
       if (!this.ready) {

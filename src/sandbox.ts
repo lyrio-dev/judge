@@ -5,6 +5,9 @@ import { join } from "path";
 
 import config from "./config";
 import { setDirectoryPermission } from "./utils";
+import rpc from "./rpc";
+import { CanceledError } from "./error";
+import { SandboxResult, SandboxStatus } from "simple-sandbox";
 
 export interface ExecuteParameters {
   // If `executable` is passed, it will be the file to execute
@@ -36,11 +39,17 @@ export interface SandboxMountDirectory {
   readOnly: boolean;
 }
 
-export async function startSandbox(
+/**
+ * @param taskId If not null, it is used to determine if and be notified when the current is canceled.
+ */
+export async function runSandbox(
+  taskId: string,
   parameters: FullExecuteParameters,
   tempDirectory: string,
   extraMounts: SandboxMountDirectory[]
 ) {
+  if (taskId) rpc.ensureNotCanceled(taskId);
+
   let executable: string;
   if (parameters.executable) executable = parameters.executable;
   else {
@@ -89,5 +98,26 @@ export async function startSandbox(
     workingDirectory: parameters.workingDirectory,
     stackSize: parameters.stackSize
   };
-  return await Sandbox.startSandbox(sandboxParameter);
+
+  if (taskId) rpc.ensureNotCanceled(taskId);
+
+  const sandbox = Sandbox.startSandbox(sandboxParameter);
+
+  if (taskId) {
+    return new Promise<SandboxResult>(async (resolve, reject) => {
+      const off = rpc.onCancel(taskId, () => {
+        sandbox.stop();
+      });
+
+      try {
+        const result = await sandbox.waitForStop();
+        off();
+        if (result.status === SandboxStatus.Cancelled) reject(new CanceledError());
+        else resolve(result);
+      } catch (e) {
+        off();
+        reject(e);
+      }
+    });
+  } else return await sandbox.waitForStop();
 }
