@@ -96,7 +96,7 @@ export async function runSandbox(
     parameters: [executable, ...parameters.parameters.filter(x => x != null)],
     environments: config.sandbox.environments,
     workingDirectory: parameters.workingDirectory,
-    stackSize: parameters.stackSize
+    stackSize: parameters.stackSize || parameters.memory
   };
 
   if (taskId) rpc.ensureNotCanceled(taskId);
