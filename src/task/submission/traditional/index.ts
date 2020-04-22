@@ -1,7 +1,7 @@
 import toposort = require("toposort");
 import { join } from "path";
 import fs = require("fs-extra");
-import uuid = require("uuid/v4");
+import { v4 as uuid } from "uuid";
 import du = require("du");
 import winston = require("winston");
 import { SandboxStatus } from "simple-sandbox";

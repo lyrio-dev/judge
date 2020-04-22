@@ -61,13 +61,7 @@ export default async function getSystemInfo(): Promise<SystemInfo> {
 
   return (cachedResult = {
     os: osInfo.distro + (osInfo.release === "unknown" ? "" : " " + osInfo.release),
-    kernel:
-      os
-        .type()
-        .split("_")
-        .join(" ") +
-      " " +
-      os.release(),
+    kernel: os.type().split("_").join(" ") + " " + os.release(),
     arch: osInfo.arch,
     cpu: {
       model: [cpu.manufacturer, cpu.brand, "@", cpu.physicalCores && cpu.physicalCores + "x", cpu.speed + "GHz"]

@@ -5,7 +5,7 @@ import fs = require("fs-extra");
 import du = require("du");
 import LruCache = require("lru-cache");
 import winston = require("winston");
-import uuid = require("uuid");
+import { v4 as uuid } from "uuid";
 
 import getLanguage, { LanguageConfig } from "./languages";
 import { ensureDirectoryEmpty, readFileOmitted } from "./utils";
