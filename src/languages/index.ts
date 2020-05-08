@@ -1,14 +1,9 @@
-import { ValidationError } from "class-validator";
-
 import { CompileParameters } from "@/compile";
 import { RunParameters } from "@/run";
 
 export interface LanguageConfig<T> {
   // The name of the langauge e.g. "cpp"
   name: string;
-
-  // Validate the user-passed language options with class-validator
-  validateLanguageOptions: (languageOptions: T) => ValidationError[];
 
   getMetaOptions: (
     languageOptions: T

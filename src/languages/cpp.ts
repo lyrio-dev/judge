@@ -1,25 +1,14 @@
-import { validateSync, IsIn } from "class-validator";
-import { plainToClass } from "class-transformer";
-
 import { LanguageConfig } from ".";
 
-class LanguageOptionsCpp {
-  @IsIn(["g++", "clang++"])
+interface LanguageOptionsCpp {
   compiler: string;
-
-  @IsIn(["c++03", "c++11", "c++14", "c++17"])
   std: string;
-
-  @IsIn(["0", "1", "2", "3", "fast"])
   O: string;
-
-  @IsIn(["64", "32", "x32"])
   m: string;
 }
 
 export const languageConfig: LanguageConfig<LanguageOptionsCpp> = {
   name: "cpp",
-  validateLanguageOptions: languageOptions => validateSync(plainToClass(LanguageOptionsCpp, languageOptions)),
   getMetaOptions: languageOptions => ({
     sourceFilename: "main.cpp",
     binarySizeLimit: 5 * 1024 * 1024 // 5 MiB, enough unless someone initlizes globals badly

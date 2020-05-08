@@ -114,13 +114,6 @@ const compileResultCache = new CompileResultCache();
 
 export async function compile(compileTask: CompileTask): Promise<CompileResult> {
   const languageConfig = getLanguage(compileTask.language);
-  const validationError = languageConfig.validateLanguageOptions(compileTask.languageOptions);
-  if (validationError.length > 0) {
-    return {
-      success: false,
-      message: `Invalid language options: ${JSON.stringify(validationError, null, 2)}`
-    };
-  }
 
   const taskHash = objectHash(compileTask);
 
