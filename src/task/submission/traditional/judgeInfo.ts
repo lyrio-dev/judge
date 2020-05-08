@@ -70,100 +70,19 @@ export interface JudgeInfoTraditional {
   }[];
 }
 
-export async function validateJudgeInfo(
+export async function validateTestcases(
   task: SubmissionTask<JudgeInfoTraditional, SubmissionContentTraditional, TestcaseResultTraditional>
 ): Promise<void> {
-  function validateLimit(limit: number, mustExists: boolean = false) {
-    if (!limit || (typeof limit === "number" && limit > 0)) return;
-    throw `Invalid limit value: ${limit}`;
-  }
-
-  function validatePercentagePoints(percentagePoints: number) {
-    if (!percentagePoints || (typeof percentagePoints === "number" && percentagePoints > 0 && percentagePoints <= 100))
-      return;
-    throw `Invalid percentage points: ${percentagePoints}`;
-  }
-
-  function validateIoFilename(filename: string) {
-    if (validFilename(filename)) return;
-    throw `Invalid filename: ${filename};`;
-  }
-
-  function validateFilename(filename: string) {
-    if (filename in task.extraInfo.testData) return;
-    throw `No such file in testdata: ${filename}`;
-  }
-
-  function validatePercentagePointsSum(objects: { percentagePoints?: number }[]) {
-    const sum = objects.reduce(
-      (s, object) =>
-        typeof object.percentagePoints === "number" && object.percentagePoints > 0 ? s + object.percentagePoints : s,
-      0
-    );
-    if (sum <= 100) return;
-    throw `Sum of percentage points = ${sum}, which is > 100`;
-  }
-
-  const judgeInfo = task.extraInfo.judgeInfo;
-  validateLimit(judgeInfo.timeLimit, true);
-  validateLimit(judgeInfo.memoryLimit, true);
-  if (judgeInfo.fileIo) {
-    if (typeof judgeInfo.fileIo.inputFilename !== "string") throw "fileIo.inputFilename should be string";
-    if (typeof judgeInfo.fileIo.outputFilename !== "string") throw "fileIo.outputFilename should be string";
-    validateIoFilename(judgeInfo.fileIo.inputFilename);
-    validateIoFilename(judgeInfo.fileIo.outputFilename);
-  }
-  if (!Array.isArray(judgeInfo.subtasks) || judgeInfo.subtasks.length === 0) throw "subtasks should be non-empty array";
-
-  // [A, B] means B depends on A
-  const edges: [number, number][] = [];
-  for (const i in judgeInfo.subtasks) {
-    const subtask = judgeInfo.subtasks[i];
-
-    validateLimit(subtask.timeLimit);
-    validateLimit(subtask.memoryLimit);
-    if (!["Sum", "GroupMin", "GroupMul"].includes(subtask.scoringType)) {
-      throw `subtask.scoringType should be one of 'Sum', 'GroupMin' or 'GroupMul'`;
-    }
-    validatePercentagePoints(subtask.percentagePoints);
-    if (subtask.dependencies && !Array.isArray(subtask.dependencies)) throw `subtask.dependencies should be array`;
-    if (Array.isArray(subtask.dependencies)) {
-      for (const dependency of subtask.dependencies) {
-        if (typeof dependency !== "number" || dependency < 0 || dependency >= judgeInfo.subtasks.length)
-          throw `Invalid dependency index ${dependency} for subtask ${i}`;
-        edges.push([dependency, Number(i)]);
-      }
-    }
-
-    if (!Array.isArray(subtask.testcases) || subtask.testcases.length === 0)
-      throw `subtask.testcases should be non-empty array`;
-
-    for (const j in subtask.testcases) {
-      const testcase = subtask.testcases[j];
-
-      validateFilename(testcase.inputFilename);
-      validateFilename(testcase.outputFilename);
-      validateLimit(testcase.timeLimit);
-      validateLimit(testcase.memoryLimit);
-      validatePercentagePoints(testcase.percentagePoints);
-
-      const realTimeLimit = testcase.timeLimit || subtask.timeLimit || judgeInfo.timeLimit;
-      const realMemoryLimit = testcase.memoryLimit || subtask.memoryLimit || judgeInfo.memoryLimit;
-      if (!realTimeLimit) throw `No time limit for testcase ${j} in subtask ${i}`;
-      if (!realMemoryLimit) throw `No memory limit for testcase ${j} in subtask ${i}`;
-    }
-    validatePercentagePointsSum(subtask.testcases);
-  }
-  validatePercentagePointsSum(judgeInfo.subtasks);
-
-  try {
-    toposort.array(
-      judgeInfo.subtasks.map((subtask, i) => i),
-      edges
-    );
-  } catch (e) {
-    throw `Cyclical subtask dependency`;
-  }
+  const { judgeInfo, testData } = task.extraInfo;
+  if (judgeInfo.subtasks.length === 0) throw "No testcases.";
+  judgeInfo.subtasks.forEach((subtask, i) =>
+    subtask.testcases.forEach(({ inputFilename, outputFilename }, j) => {
+      if (!(inputFilename in testData))
+        throw `Input file ${inputFilename} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
+      if (!(outputFilename in testData))
+        throw `Output file ${outputFilename} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
+    })
+  );
 }
 
 export function getSubtaskCount(judgeInfo: JudgeInfoTraditional) {
