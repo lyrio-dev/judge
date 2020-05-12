@@ -38,6 +38,31 @@ export function ensureDirectoryEmptySync(path: string) {
   fs.emptyDirSync(path);
 }
 
+/**
+ * Read a file's first at most `lengthLimit` bytes, ignoring the remaining bytes.
+ */
+export async function readFileLimited(filePath: string, lengthLimit: number): Promise<string> {
+  let file = -1;
+  try {
+    file = await fs.open(filePath, "r");
+    const actualSize = (await fs.stat(filePath)).size;
+    const buf = Buffer.allocUnsafe(Math.min(actualSize, lengthLimit));
+    const bytesRead = (await fs.read(file, buf, 0, buf.length, 0)).bytesRead;
+    let ret = buf.toString("utf8", 0, bytesRead);
+    return ret;
+  } catch (e) {
+    return "";
+  } finally {
+    if (file != -1) {
+      await fs.close(file);
+    }
+  }
+}
+
+/**
+ * Read a file's first at most `lengthLimit` bytes, and add `\n<n bytes omitted>` message if there're
+ * more bytes remaining.
+ */
 export async function readFileOmitted(filePath: string, lengthLimit: number): Promise<string> {
   let file = -1;
   try {
@@ -52,7 +77,7 @@ export async function readFileOmitted(filePath: string, lengthLimit: number): Pr
     }
     return ret;
   } catch (e) {
-    return null;
+    return "";
   } finally {
     if (file != -1) {
       await fs.close(file);

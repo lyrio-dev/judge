@@ -25,7 +25,7 @@ export const languageConfig: LanguageConfig<LanguageOptionsCpp> = {
       "-DONLINE_JUDGE",
       `-m${languageOptions.m}` // TODO: ignore this option on non-x86 platform
     ],
-    time: 5000,
+    time: 10000,
     memory: 1024 * 1024 * 1024 * 2,
     process: 10,
     stdout: `${binaryDirectoryInside}/message.txt`,
@@ -41,10 +41,11 @@ export const languageConfig: LanguageConfig<LanguageOptionsCpp> = {
     memory,
     stdinFile,
     stdoutFile,
-    stderrFile
+    stderrFile,
+    parameters
   ) => ({
     executable: `${binaryDirectoryInside}/a.out`,
-    parameters: [],
+    parameters: parameters,
     process: 1,
     stdin: stdinFile,
     stdout: stdoutFile,

@@ -1,5 +1,4 @@
 import toposort = require("toposort");
-import { join } from "path";
 import fs = require("fs-extra");
 import { v4 as uuid } from "uuid";
 import du = require("du");
@@ -10,11 +9,14 @@ import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submissi
 import { compile, CompileResultSuccess } from "@/compile";
 import { JudgeInfoTraditional, TestcaseConfig } from "./judgeInfo";
 import { runTaskQueued } from "@/taskQueue";
-import { runSandbox } from "@/sandbox";
+import { runSandbox, joinPath, MappedPath, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
 import config from "@/config";
 import { readFileOmitted, stringToOmited } from "@/utils";
 import { getFile } from "@/file";
+import { ConfigurationError } from "@/error";
+import { runBuiltinChecker } from "@/checkers/builtin";
+import { runCustomChecker, validateCustomChecker } from "@/checkers/custom";
 
 export * from "./judgeInfo";
 
@@ -48,7 +50,7 @@ export interface TestcaseResultTraditional {
   output?: string;
   userOutput?: string;
   userError?: string;
-  graderMessage?: string;
+  checkerMessage?: string;
   systemMessage?: string;
 }
 
@@ -69,9 +71,6 @@ function getSubtaskOrder(judgeInfo: JudgeInfoTraditional) {
   );
 }
 
-const SANDBOX_INSIDE_PATH_BINARY = "/sandbox/binary";
-const SANDBOX_INSIDE_PATH_WORKING = "/sandbox/working";
-
 /**
  * Run a subtask testcase or sample testcase.
  *
@@ -86,7 +85,8 @@ async function runTestcase(
   subtaskIndex: number,
   testcaseIndex: number,
   testcase: TestcaseConfig,
-  compileResult: CompileResultSuccess
+  compileResult: CompileResultSuccess,
+  customCheckerCompileResult: CompileResultSuccess
 ): Promise<TestcaseResultTraditional> {
   return await runTaskQueued(async (taskWorkingDirectory: string) => {
     const isSample = sampleId != null;
@@ -113,65 +113,63 @@ async function runTestcase(
       score: 0
     };
 
-    const binaryDirectory = compileResult.binaryDirectory;
-    const workingDirectory = join(taskWorkingDirectory, "working");
-    const tempDirectory = join(taskWorkingDirectory, "temp");
+    const binaryDirectory: MappedPath = {
+      outside: compileResult.binaryDirectory,
+      inside: SANDBOX_INSIDE_PATH_BINARY
+    };
+    const workingDirectory = {
+      outside: joinPath(taskWorkingDirectory, "working"),
+      inside: SANDBOX_INSIDE_PATH_WORKING
+    };
 
-    await Promise.all([fs.ensureDir(workingDirectory), fs.ensureDir(tempDirectory)]);
+    const tempDirectory = joinPath(taskWorkingDirectory, "temp");
 
-    const binaryDirectoryInside = SANDBOX_INSIDE_PATH_BINARY;
-    const workingDirectoryInside = SANDBOX_INSIDE_PATH_WORKING;
+    await Promise.all([fs.ensureDir(workingDirectory.outside), fs.ensureDir(tempDirectory)]);
 
-    const inputFilename = judgeInfo.fileIo ? judgeInfo.fileIo.inputFilename : uuid();
-    const inputFilePath = join(workingDirectory, inputFilename);
-    const inputFilePathInside = join(workingDirectoryInside, inputFilename);
+    const inputFile = joinPath(workingDirectory, judgeInfo.fileIo ? judgeInfo.fileIo.inputFilename : uuid());
 
-    if (isSample) await fs.writeFile(inputFilePath, sample.inputData);
-    else await fs.copy(getFile(task.extraInfo.testData[testcase.inputFilename]), inputFilePath);
+    const writeInputFile = async () => {
+      if (isSample) await fs.writeFile(inputFile.outside, sample.inputData);
+      else await fs.copy(getFile(task.extraInfo.testData[testcase.inputFilename]), inputFile.outside);
+    };
+    await writeInputFile();
 
-    const outputFilename = judgeInfo.fileIo ? judgeInfo.fileIo.outputFilename : uuid();
-    const outputFilePath = join(workingDirectory, outputFilename);
-    const outputFilePathInside = join(workingDirectoryInside, outputFilename);
-
-    const stderrFilename = uuid();
-    const stderrFilePath = join(workingDirectory, stderrFilename);
-    const stderrFilePathInside = join(workingDirectoryInside, stderrFilename);
+    const outputFile = joinPath(workingDirectory, judgeInfo.fileIo ? judgeInfo.fileIo.outputFilename : uuid());
+    const stderrFile = joinPath(workingDirectory, uuid());
 
     const languageConfig = getLanguage(task.extraInfo.submissionContent.language);
     const sandboxResult = await runSandbox(
       task.taskId,
       {
         ...languageConfig.run(
-          binaryDirectoryInside,
-          workingDirectoryInside,
+          binaryDirectory.inside,
+          workingDirectory.inside,
           task.extraInfo.submissionContent.languageOptions,
           timeLimit,
           memoryLimit,
-          judgeInfo.fileIo ? null : inputFilePathInside,
-          judgeInfo.fileIo ? null : outputFilePathInside,
-          stderrFilePathInside
+          judgeInfo.fileIo ? null : inputFile.inside,
+          judgeInfo.fileIo ? null : outputFile.inside,
+          stderrFile.inside
         ),
         time: timeLimit,
         memory: memoryLimit * 1024 * 1024,
-        workingDirectory: workingDirectoryInside
+        workingDirectory: workingDirectory.inside
       },
       tempDirectory,
       [
         {
-          outsidePath: binaryDirectory,
-          insidePath: binaryDirectoryInside,
+          mappedPath: binaryDirectory,
           readOnly: true
         },
         {
-          outsidePath: workingDirectory,
-          insidePath: workingDirectoryInside,
+          mappedPath: workingDirectory,
           readOnly: false
         }
       ]
     );
 
-    const workingDirectorySize = await du(workingDirectory);
-    const inputFileSize = await du(inputFilePath);
+    const workingDirectorySize = await du(workingDirectory.outside);
+    const inputFileSize = await du(inputFile.outside);
     if (workingDirectorySize - inputFileSize > config.limit.outputSize) {
       result.status = TestcaseStatusTraditional.OutputLimitExceeded;
     } else if (sandboxResult.status === SandboxStatus.TimeLimitExceeded) {
@@ -183,7 +181,7 @@ async function runTestcase(
       result.systemMessage = "Exit code: " + sandboxResult.code;
     } else if (sandboxResult.status !== SandboxStatus.OK) {
       throw new Error("Corrupt sandbox result: " + JSON.stringify(sandboxResult));
-    } else if (!(await fs.pathExists(outputFilePath))) {
+    } else if (!(await fs.pathExists(outputFile.outside))) {
       result.status = TestcaseStatusTraditional.FileError;
     }
 
@@ -193,53 +191,54 @@ async function runTestcase(
     result.output = isSample
       ? stringToOmited(sample.outputData, config.limit.dataDisplay)
       : await readFileOmitted(getFile(task.extraInfo.testData[testcase.outputFilename]), config.limit.dataDisplay);
-    result.userOutput = await readFileOmitted(outputFilePath, config.limit.dataDisplay);
-    result.userError = await readFileOmitted(stderrFilePath, config.limit.stderrDisplay);
+    result.userOutput = await readFileOmitted(outputFile.outside, config.limit.dataDisplay);
+    result.userError = await readFileOmitted(stderrFile.outside, config.limit.stderrDisplay);
     result.time = sandboxResult.time / 1e6;
     result.memory = sandboxResult.memory / 1024;
 
-    // Finished running, now grade
+    // Finished running user's program, now run checker
     if (!result.status) {
-      const answerFilename = uuid();
-      const answerFilePath = join(workingDirectory, answerFilename);
-      const answerFilePathInside = join(workingDirectoryInside, answerFilename);
+      // The input file may be modified by user's program
+      await writeInputFile();
 
-      if (isSample) await fs.writeFile(answerFilePath, sample.outputData);
-      else await fs.copy(getFile(task.extraInfo.testData[testcase.outputFilename]), answerFilePath);
+      const answerFile = joinPath(workingDirectory, uuid());
 
-      // const graderOutputFilename = uuid();
-      // const graderOutputFilePath = join(workingDirectory, graderOutputFilename);
-      // const graderOutputFilePathInside = join(workingDirectoryInside, graderOutputFilename);
+      if (isSample) await fs.writeFile(answerFile.outside, sample.outputData);
+      else await fs.copy(getFile(task.extraInfo.testData[testcase.outputFilename]), answerFile.outside);
 
-      // TODO: custom grader
-      const graderSandboxResult = await runSandbox(
-        task.taskId,
-        {
-          executable: "/usr/bin/diff",
-          time: 5000,
-          memory: 1024 * 1024 * 1024,
-          parameters: ["-Bbq", outputFilePathInside, answerFilePathInside],
-          process: 1,
-          // stdout: graderOutputFilePathInside,
-          workingDirectory: workingDirectoryInside
-        },
-        tempDirectory,
-        [
-          {
-            outsidePath: workingDirectory,
-            insidePath: workingDirectoryInside,
-            readOnly: false
-          }
-        ]
-      );
-      if (graderSandboxResult.status !== SandboxStatus.OK) {
+      const checkerResult =
+        judgeInfo.checker.type === "custom"
+          ? await runCustomChecker(
+              task.taskId,
+              judgeInfo.checker,
+              customCheckerCompileResult,
+              inputFile,
+              outputFile,
+              answerFile,
+              task.extraInfo.submissionContent.code,
+              workingDirectory,
+              tempDirectory
+            )
+          : await runBuiltinChecker(outputFile.outside, answerFile.outside, judgeInfo.checker);
+
+      // Return string means checker error
+      if (typeof checkerResult === "string") {
         result.status = TestcaseStatusTraditional.JudgementFailed;
-        result.systemMessage = `Grader encountered a ${SandboxStatus[graderSandboxResult.status]}`;
-      } else if (graderSandboxResult.code === 0) {
-        result.status = TestcaseStatusTraditional.Accepted;
-        result.score = 100;
+        result.score = 0;
+        result.systemMessage = checkerResult;
       } else {
-        result.status = TestcaseStatusTraditional.WrongAnswer;
+        result.checkerMessage = checkerResult.checkerMessage;
+        result.score = checkerResult.score;
+      }
+
+      if (result.status !== TestcaseStatusTraditional.JudgementFailed) {
+        if (result.score === 100) {
+          result.status = TestcaseStatusTraditional.Accepted;
+        } else if (result.score === 0) {
+          result.status = TestcaseStatusTraditional.WrongAnswer;
+        } else {
+          result.status = TestcaseStatusTraditional.PartiallyCorrect;
+        }
       }
     }
 
@@ -258,7 +257,26 @@ async function runTestcase(
 export async function runTask(
   task: SubmissionTask<JudgeInfoTraditional, SubmissionContentTraditional, TestcaseResultTraditional>
 ) {
+  const judgeInfo = task.extraInfo.judgeInfo;
+
   task.reportProgress.compiling();
+
+  let customCheckerCompileResult: CompileResultSuccess;
+  if (judgeInfo.checker.type === "custom") {
+    validateCustomChecker(judgeInfo.checker);
+
+    const compileResult = await compile({
+      language: judgeInfo.checker.language,
+      code: await fs.readFile(getFile(task.extraInfo.testData[judgeInfo.checker.filename]), "utf-8"),
+      languageOptions: judgeInfo.checker.languageOptions
+    });
+
+    if (!(compileResult instanceof CompileResultSuccess)) {
+      throw new ConfigurationError(`Failed to compile custom checker:\n\n${compileResult.message}`);
+    }
+
+    customCheckerCompileResult = compileResult;
+  }
 
   const compileResult = await compile({
     language: task.extraInfo.submissionContent.language,
@@ -277,7 +295,6 @@ export async function runTask(
   }
 
   try {
-    const judgeInfo = task.extraInfo.judgeInfo;
     const samples = task.extraInfo.samples;
 
     const sumSpecfiedPercentagePointsForSubtasks = judgeInfo.subtasks
@@ -308,7 +325,17 @@ export async function runTask(
           continue;
         }
 
-        const result = await runTestcase(task, judgeInfo, Number(i), samples[i], null, null, null, compileResult);
+        const result = await runTestcase(
+          task,
+          judgeInfo,
+          Number(i),
+          samples[i],
+          null,
+          null,
+          null,
+          compileResult,
+          customCheckerCompileResult
+        );
         if (result.status !== TestcaseStatusTraditional.Accepted) {
           samplesFailed = true;
           firstNonAcceptedStatus = result.status;
@@ -367,9 +394,10 @@ export async function runTask(
               null,
               null,
               subtaskIndex,
-              Number(i),
+              i,
               testcase,
-              compileResult
+              compileResult,
+              customCheckerCompileResult
             );
             subtaskScore += (result.score * normalizedTestcases[i].percentagePoints) / 100;
             task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
@@ -392,7 +420,8 @@ export async function runTask(
               subtaskIndex,
               Number(i),
               testcase,
-              compileResult
+              compileResult,
+              customCheckerCompileResult
             );
             if (subtask.scoringType === "GroupMin") subtaskScore = Math.min(subtaskScore, result.score);
             else subtaskScore = (subtaskScore * result.score) / 100;
@@ -426,5 +455,6 @@ export async function runTask(
     }
   } finally {
     compileResult.dereference();
+    if (customCheckerCompileResult) customCheckerCompileResult.dereference();
   }
 }

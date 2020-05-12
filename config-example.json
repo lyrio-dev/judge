@@ -25,6 +25,8 @@
     "compilerMessage": 524288,
     "outputSize": 104857600,
     "dataDisplay": 128,
-    "stderrDisplay": 5120
+    "stderrDisplay": 5120,
+    "customCheckerTime": 2000,
+    "customCheckerMemory": 512
   }
 }

@@ -17,7 +17,7 @@ The judge client of next-generation SYZOJ.
 
 These features are on the plan:
 
-* Custom graders
+* Custom checkers
 * Other types of problem (SubmitAnswer, Interaction, ...)
 * Other forms of task (Hack, CustomTest, ...)
 * Other languages

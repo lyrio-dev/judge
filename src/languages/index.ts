@@ -30,7 +30,8 @@ export interface LanguageConfig<T> {
     memory: number, // The memory limit by the problem
     stdinFile?: string,
     stdoutFile?: string,
-    stderrFile?: string
+    stderrFile?: string,
+    parameters?: string[] // The parameters passed by command line, mainly used by custom checkers
   ) => RunParameters;
 }
 

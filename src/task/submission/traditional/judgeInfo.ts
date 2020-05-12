@@ -1,9 +1,8 @@
 import objectHash = require("object-hash");
-import toposort = require("toposort");
-import validFilename = require("valid-filename");
 
 import { SubmissionTask, ProblemSample } from "@/task/submission";
 import { SubmissionContentTraditional, TestcaseResultTraditional } from ".";
+import { Checker } from "@/checkers";
 
 export interface TestcaseConfig {
   inputFilename?: string;
@@ -68,6 +67,8 @@ export interface JudgeInfoTraditional {
     // A subtask will be skipped if one of it dependencies fails
     dependencies?: number[];
   }[];
+
+  checker: Checker;
 }
 
 export async function validateTestcases(
@@ -83,6 +84,8 @@ export async function validateTestcases(
         throw `Output file ${outputFilename} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
     })
   );
+  if (judgeInfo.checker.type === "custom" && !(judgeInfo.checker.filename in testData))
+    throw `Custom checker ${judgeInfo.checker.filename} doesn't exist.`;
 }
 
 export function getSubtaskCount(judgeInfo: JudgeInfoTraditional) {

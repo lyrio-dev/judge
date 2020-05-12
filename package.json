@@ -17,13 +17,16 @@
     "@types/toposort": "^2.0.3",
     "@types/uuid": "^7.0.2",
     "axios": "^0.19.2",
+    "bindings": "^1.5.0",
     "class-transformer": "^0.2.3",
     "class-validator": "^0.12.1",
+    "cmake-js": "^6.1.0",
     "du": "^1.0.0",
     "fs-extra": "^9.0.0",
     "klaw": "^3.0.0",
     "lodash.debounce": "^4.0.8",
     "lru-cache": "^5.1.1",
+    "node-addon-api": "^3.0.0",
     "object-hash": "^2.0.3",
     "posix": "^4.2.0",
     "prettier": "^2.0.5",
@@ -43,7 +46,8 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "tsc --noEmit -p .",
-    "start": "ts-node -r tsconfig-paths/register src/index"
+    "start": "ts-node -r tsconfig-paths/register src/index",
+    "install": "cmake-js compile"
   },
   "devDependencies": {
     "cz-conventional-changelog": "3.1.0"

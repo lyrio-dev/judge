@@ -9,6 +9,24 @@ import rpc from "./rpc";
 import { CanceledError } from "./error";
 import { SandboxResult, SandboxStatus } from "simple-sandbox";
 
+export interface MappedPath {
+  outside: string;
+  inside: string;
+}
+
+// A useful wrapper for path.join()
+
+export function joinPath(basePath: MappedPath, ...paths: string[]): MappedPath;
+export function joinPath(basePath: string, ...paths: string[]): string;
+
+export function joinPath(basePath: MappedPath | string, ...paths: string[]) {
+  if (typeof basePath === "string") return join.apply(this, [basePath, ...paths]);
+  return {
+    inside: join.apply(this, [basePath.inside, ...paths]),
+    outside: join.apply(this, [basePath.outside, ...paths])
+  };
+}
+
 export interface ExecuteParameters {
   // If `executable` is passed, it will be the file to execute
   executable?: string;
@@ -34,10 +52,13 @@ export interface FullExecuteParameters extends ExecuteParameters {
 }
 
 export interface SandboxMountDirectory {
-  outsidePath: string;
-  insidePath: string;
+  mappedPath: MappedPath;
   readOnly: boolean;
 }
+
+export const SANDBOX_INSIDE_PATH_BINARY = "/sandbox/binary";
+export const SANDBOX_INSIDE_PATH_WORKING = "/sandbox/working";
+export const SANDBOX_INSIDE_PATH_SOURCE = "/sandbox/source";
 
 /**
  * @param taskId If not null, it is used to determine if and be notified when the current is canceled.
@@ -61,17 +82,19 @@ export async function runSandbox(
 
   extraMounts = extraMounts.concat([
     {
-      outsidePath: tempDirectory,
-      insidePath: "/tmp",
+      mappedPath: {
+        outside: tempDirectory,
+        inside: "/tmp"
+      },
       readOnly: false
     }
   ]);
 
   await Promise.all([
     // Create the mount points in the sandbox rootfs
-    await Promise.all(extraMounts.map(mount => fs.ensureDir(join(config.sandbox.rootfs, mount.insidePath)))),
+    await Promise.all(extraMounts.map(mount => fs.ensureDir(join(config.sandbox.rootfs, mount.mappedPath.inside)))),
     // TODO: Use something like bindfs to set owner for the mount point instead
-    await Promise.all(extraMounts.map(mount => setDirectoryPermission(mount.outsidePath, !mount.readOnly)))
+    await Promise.all(extraMounts.map(mount => setDirectoryPermission(mount.mappedPath.outside, !mount.readOnly)))
   ]);
 
   const sandboxParameter: Sandbox.SandboxParameter = {
@@ -81,8 +104,8 @@ export async function runSandbox(
     chroot: config.sandbox.rootfs,
     hostname: config.sandbox.hostname,
     mounts: extraMounts.map(mount => ({
-      src: mount.outsidePath,
-      dst: mount.insidePath,
+      src: mount.mappedPath.outside,
+      dst: mount.mappedPath.inside,
       limit: mount.readOnly ? 0 : -1
     })),
     redirectBeforeChroot: false,
@@ -93,7 +116,7 @@ export async function runSandbox(
     stderr: parameters.stderr,
     user: config.sandbox.user,
     cgroup: uuid(),
-    parameters: [executable, ...parameters.parameters.filter(x => x != null)],
+    parameters: [executable, ...(parameters.parameters || []).filter(x => x != null)],
     environments: config.sandbox.environments,
     workingDirectory: parameters.workingDirectory,
     stackSize: parameters.stackSize || parameters.memory

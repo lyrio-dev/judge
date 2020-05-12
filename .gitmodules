@@ -1,0 +1,3 @@
+[submodule "vendor/testlib"]
+	path = vendor/testlib
+	url = https://github.com/MikeMirzayanov/testlib

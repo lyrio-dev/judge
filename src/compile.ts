@@ -1,4 +1,3 @@
-import { join } from "path";
 import { SandboxStatus } from "simple-sandbox";
 import objectHash = require("object-hash");
 import fs = require("fs-extra");
@@ -9,7 +8,14 @@ import { v4 as uuid } from "uuid";
 
 import getLanguage, { LanguageConfig } from "./languages";
 import { ensureDirectoryEmpty, readFileOmitted } from "./utils";
-import { ExecuteParameters, runSandbox } from "./sandbox";
+import {
+  ExecuteParameters,
+  runSandbox,
+  SANDBOX_INSIDE_PATH_SOURCE,
+  SANDBOX_INSIDE_PATH_BINARY,
+  MappedPath,
+  joinPath
+} from "./sandbox";
 import config from "./config";
 import { runTaskQueued } from "./taskQueue";
 
@@ -95,7 +101,7 @@ class CompileResultCache {
   public async set(taskHash: string, result: CompileResultSuccess): Promise<CompileResultSuccess> {
     if (this.lruCache.has(taskHash)) return this.lruCache.get(taskHash).reference();
 
-    const newCompileResult = await result.copyTo(join(config.binaryCacheStore, uuid()));
+    const newCompileResult = await result.copyTo(joinPath(config.binaryCacheStore, uuid()));
     newCompileResult.reference();
     this.lruCache.set(taskHash, newCompileResult);
     return newCompileResult.reference();
@@ -154,9 +160,6 @@ export async function compile(compileTask: CompileTask): Promise<CompileResult> 
   return result;
 }
 
-const SANDBOX_INSIDE_PATH_SOURCE = "/sandbox/source";
-const SANDBOX_INSIDE_PATH_BINARY = "/sandbox/binary";
-
 // Return reference()-ed result if success
 async function doCompile(
   compileTask: CompileTask,
@@ -165,61 +168,62 @@ async function doCompile(
   taskWorkingDirectory: string
 ): Promise<CompileResult> {
   const { sourceFilename, binarySizeLimit } = languageConfig.getMetaOptions(compileTask.languageOptions);
-  const sourceDirectory = join(taskWorkingDirectory, "source");
-  const binaryDirectory = join(taskWorkingDirectory, "working");
-  const tempDirectory = join(taskWorkingDirectory, "temp");
+
+  const sourceDirectory: MappedPath = {
+    outside: joinPath(taskWorkingDirectory, "source"),
+    inside: SANDBOX_INSIDE_PATH_SOURCE
+  };
+  const binaryDirectory: MappedPath = {
+    outside: joinPath(taskWorkingDirectory, "working"),
+    inside: SANDBOX_INSIDE_PATH_BINARY
+  };
+
+  const tempDirectory = joinPath(taskWorkingDirectory, "temp");
 
   await Promise.all([
-    ensureDirectoryEmpty(sourceDirectory),
-    ensureDirectoryEmpty(binaryDirectory),
+    ensureDirectoryEmpty(sourceDirectory.outside),
+    ensureDirectoryEmpty(binaryDirectory.outside),
     ensureDirectoryEmpty(tempDirectory)
   ]);
 
-  const sourceFilePath = join(sourceDirectory, sourceFilename);
-  await fs.writeFile(sourceFilePath, compileTask.code);
+  const sourceFile = joinPath(sourceDirectory, sourceFilename);
+  await fs.writeFile(sourceFile.outside, compileTask.code);
 
-  const sourceDirectoryInside = SANDBOX_INSIDE_PATH_SOURCE;
-  const binaryDirectoryInside = SANDBOX_INSIDE_PATH_BINARY;
-
-  const sourceFilePathInside = join(sourceDirectoryInside, sourceFilename);
-
-  const { messageFile, ...executeParameters } = languageConfig.compile(
-    sourceFilePathInside,
-    binaryDirectoryInside,
+  const executeParameters = languageConfig.compile(
+    sourceFile.inside,
+    binaryDirectory.inside,
     compileTask.languageOptions
   );
   const sandboxResult = await runSandbox(null, executeParameters, tempDirectory, [
     {
-      outsidePath: sourceDirectory,
-      insidePath: sourceDirectoryInside,
+      mappedPath: sourceDirectory,
       readOnly: true
     },
     {
-      outsidePath: binaryDirectory,
-      insidePath: binaryDirectoryInside,
+      mappedPath: binaryDirectory,
       readOnly: false
     }
   ]);
 
-  const messageFilePath = join(binaryDirectory, messageFile);
-  const message = (await readFileOmitted(messageFilePath, config.limit.compilerMessage)) || "";
-  await fs.remove(messageFilePath);
+  const messageFile = joinPath(binaryDirectory, executeParameters.messageFile);
+  const message = (await readFileOmitted(messageFile.outside, config.limit.compilerMessage)) || "";
+  await fs.remove(messageFile.outside);
 
   if (sandboxResult.status === SandboxStatus.OK) {
     if (sandboxResult.code === 0) {
-      const binaryDirectorySize = await du(binaryDirectory);
+      const binaryDirectorySize = await du(binaryDirectory.outside);
       if (binaryDirectorySize > binarySizeLimit) {
         return {
           success: false,
           message: (
-            `Your source code compiled to ${binaryDirectorySize} bytes, exceeded the size limit.\n\n` + message
+            `The source code compiled to ${binaryDirectorySize} bytes, exceeded the size limit.\n\n` + message
           ).trim()
         };
       } else if (binaryDirectorySize > config.binaryCacheMaxSize) {
         return {
           success: false,
           message: (
-            `Your source code compiled to ${binaryDirectorySize} bytes, exceeded the limit of cache storage.\n\n` +
+            `The source code compiled to ${binaryDirectorySize} bytes, exceeded the limit of cache storage.\n\n` +
             message
           ).trim()
         };
@@ -227,7 +231,7 @@ async function doCompile(
         // We must done copying it to the cache before reaching the "finally" block in this function
         return await compileResultCache.set(
           taskHash,
-          new CompileResultSuccess(message, binaryDirectory, binaryDirectorySize)
+          new CompileResultSuccess(message, binaryDirectory.outside, binaryDirectorySize)
         );
       }
     } else {
@@ -239,7 +243,7 @@ async function doCompile(
   } else {
     return {
       success: false,
-      message: (`A ${SandboxStatus[sandboxResult.status]} encountered while compiling your code.\n\n` + message).trim()
+      message: (`A ${SandboxStatus[sandboxResult.status]} encountered while compiling the code.\n\n` + message).trim()
     };
   }
 }
