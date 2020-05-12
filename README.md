@@ -29,10 +29,10 @@ You need a Linux system with:
 * A C++ 17 compiler (e.g. `g++-8` or `clang++-8`).
 * A sandbox [rootfs](#Sandbox-Rootfs).
 
-Clone the git repo:
+Clone the git repo (`--recursive` is required for git submodules):
 
 ```bash
-$ git clone git@github.com:syzoj/syzoj-ng-judge.git
+$ git clone git@github.com:syzoj/syzoj-ng-judge.git --recursive
 $ cd syzoj-ng-judge
 ```
 
@@ -108,7 +108,11 @@ Create a copy of the config file, then edit it:
     // The max bytes of user's output file and testdata to display to the user, the remaining will be omitted
     "dataDisplay": 128,
     // The max bytes of user's stderr output to display to the user, the remaining will be omitted
-    "stderrDisplay": 5120
+    "stderrDisplay": 5120,
+    // The time limit of custom checkers
+    "customCheckerTime": 2000,
+    // The memory limit of custom checkers
+    "customCheckerMemory": 512
   }
 }
 ```
@@ -134,3 +138,9 @@ The use of sandbox rootfs is aimed to isolate the access of user programs (and c
 The sandbox rootfs has nothing special compared to any other Linux rootfs. Currently there's no official build of rootfs to download. You can use our old [sandbox-rootfs-181202](https://github.com/syzoj/sandbox-rootfs/releases/tag/181202) for the old [judge-v3](https://github.com/syzoj/judge-v3) or just bootstrap your own rootfs with tools like `debootstrap` or `pacstrap`. Just make sure the compilers inside works.
 
 The sandbox rootfs won't be modified by compilers or user programs. But some mount points in `/sandbox` inside the rootfs will be created automatically by the sandbox.
+
+Currently you need to add `testlib.h` to your rootfs's include directory to use testlib interface of custom checker:
+
+```bash
+$ cp vendor/testlib/testlib.h $ROOTFS/usr/include/
+```
