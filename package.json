@@ -41,13 +41,16 @@
     "typescript": "^3.8.3",
     "uuid": "^7.0.3",
     "valid-filename": "^3.1.0",
-    "winston": "^3.2.1"
+    "winston": "^3.2.1",
+    "snyk": "^1.320.2"
   },
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "tsc --noEmit -p .",
     "start": "ts-node -r tsconfig-paths/register src/index",
-    "install": "cmake-js compile"
+    "install": "cmake-js compile",
+    "snyk-protect": "snyk protect",
+    "prepare": "yarn run snyk-protect"
   },
   "devDependencies": {
     "cz-conventional-changelog": "3.1.0"
@@ -56,5 +59,6 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
-  }
+  },
+  "snyk": true
 }
