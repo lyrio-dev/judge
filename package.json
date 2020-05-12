@@ -45,7 +45,7 @@
   },
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\"",
-    "test": "tsc --noEmit -p .",
+    "test": "tsc -p .",
     "start": "ts-node -r tsconfig-paths/register src/index",
     "install": "cmake-js compile"
   },

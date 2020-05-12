@@ -4,6 +4,8 @@ language: node_js
 before_install:
   - sudo apt-get update
   - sudo apt-get -y install g++-8 libfmt-dev
+install:
+  - yarn
 env:
   - CXX=g++-8
 node_js:
