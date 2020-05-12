@@ -15,11 +15,11 @@
     "@types/promise-queue": "^2.2.0",
     "@types/socket.io-client": "^1.4.32",
     "@types/toposort": "^2.0.3",
-    "@types/uuid": "^7.0.2",
+    "@types/uuid": "^7.0.3",
     "axios": "^0.19.2",
     "bindings": "^1.5.0",
     "class-transformer": "^0.2.3",
-    "class-validator": "^0.12.1",
+    "class-validator": "^0.12.2",
     "cmake-js": "^6.1.0",
     "du": "^1.0.0",
     "fs-extra": "^9.0.0",
@@ -34,12 +34,12 @@
     "reflect-metadata": "^0.1.13",
     "simple-sandbox": "^0.3.11",
     "socket.io-client": "^2.3.0",
-    "systeminformation": "^4.23.5",
+    "systeminformation": "^4.25.1",
     "toposort": "^2.0.2",
-    "ts-node": "^8.9.0",
+    "ts-node": "^8.10.1",
     "tsconfig-paths": "^3.9.0",
     "typescript": "^3.8.3",
-    "uuid": "^7.0.3",
+    "uuid": "^8.0.0",
     "valid-filename": "^3.1.0",
     "winston": "^3.2.1"
   },
@@ -50,7 +50,7 @@
     "install": "cmake-js compile"
   },
   "devDependencies": {
-    "cz-conventional-changelog": "3.1.0"
+    "cz-conventional-changelog": "3.2.0"
   },
   "config": {
     "commitizen": {
