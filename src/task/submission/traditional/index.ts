@@ -106,8 +106,8 @@ async function runTestcase(
       testcaseInfo: {
         timeLimit: timeLimit,
         memoryLimit: memoryLimit,
-        inputFilename: isSample ? null : testcase.inputFilename,
-        outputFilename: isSample ? null : testcase.outputFilename
+        inputFilename: isSample ? null : testcase.inputFile,
+        outputFilename: isSample ? null : testcase.outputFile
       },
       status: null,
       score: 0
@@ -130,7 +130,7 @@ async function runTestcase(
 
     const writeInputFile = async () => {
       if (isSample) await fs.writeFile(inputFile.outside, sample.inputData);
-      else await fs.copy(getFile(task.extraInfo.testData[testcase.inputFilename]), inputFile.outside);
+      else await fs.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
     };
     await writeInputFile();
 
@@ -187,10 +187,10 @@ async function runTestcase(
 
     result.input = isSample
       ? stringToOmited(sample.inputData, config.limit.dataDisplay)
-      : await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFilename]), config.limit.dataDisplay);
+      : await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFile]), config.limit.dataDisplay);
     result.output = isSample
       ? stringToOmited(sample.outputData, config.limit.dataDisplay)
-      : await readFileOmitted(getFile(task.extraInfo.testData[testcase.outputFilename]), config.limit.dataDisplay);
+      : await readFileOmitted(getFile(task.extraInfo.testData[testcase.outputFile]), config.limit.dataDisplay);
     result.userOutput = await readFileOmitted(outputFile.outside, config.limit.dataDisplay);
     result.userError = await readFileOmitted(stderrFile.outside, config.limit.stderrDisplay);
     result.time = sandboxResult.time / 1e6;
@@ -204,7 +204,7 @@ async function runTestcase(
       const answerFile = joinPath(workingDirectory, uuid());
 
       if (isSample) await fs.writeFile(answerFile.outside, sample.outputData);
-      else await fs.copy(getFile(task.extraInfo.testData[testcase.outputFilename]), answerFile.outside);
+      else await fs.copy(getFile(task.extraInfo.testData[testcase.outputFile]), answerFile.outside);
 
       const checkerResult =
         judgeInfo.checker.type === "custom"
@@ -298,17 +298,16 @@ export async function runTask(
     const samples = task.extraInfo.samples;
 
     const sumSpecfiedPercentagePointsForSubtasks = judgeInfo.subtasks
-      .map(testcase => testcase.percentagePoints)
+      .map(testcase => testcase.points)
       .filter(x => x != null)
       .reduce((s, x) => s + x, 0);
-    const countUnspecfiedPercentagePointsForSubtasks = judgeInfo.subtasks.filter(
-      testcase => testcase.percentagePoints == null
-    ).length;
+    const countUnspecfiedPercentagePointsForSubtasks = judgeInfo.subtasks.filter(testcase => testcase.points == null)
+      .length;
     const defaultPercentagePointsForSubtasks =
       (100 - sumSpecfiedPercentagePointsForSubtasks) / countUnspecfiedPercentagePointsForSubtasks;
 
     const subtaskFullScores = judgeInfo.subtasks.map(subtask =>
-      subtask.percentagePoints != null ? subtask.percentagePoints : defaultPercentagePointsForSubtasks
+      subtask.points != null ? subtask.points : defaultPercentagePointsForSubtasks
     );
 
     const runSamples = judgeInfo.runSamples && samples && !task.extraInfo.submissionContent.skipSamples ? true : false;
@@ -364,19 +363,17 @@ export async function runTask(
       }
 
       const sumSpecfiedPercentagePointsForTestcases = subtask.testcases
-        .map(testcase => testcase.percentagePoints)
+        .map(testcase => testcase.points)
         .filter(x => x != null)
         .reduce((s, x) => s + x, 0);
-      const countUnspecfiedPercentagePointsForTestcases = subtask.testcases.filter(
-        testcase => testcase.percentagePoints == null
-      ).length;
+      const countUnspecfiedPercentagePointsForTestcases = subtask.testcases.filter(testcase => testcase.points == null)
+        .length;
       const defaultPercentagePointsForTestcases =
         (100 - sumSpecfiedPercentagePointsForTestcases) / countUnspecfiedPercentagePointsForTestcases;
 
       const normalizedTestcases = subtask.testcases.map(testcase => ({
         ...testcase,
-        percentagePoints:
-          testcase.percentagePoints == null ? defaultPercentagePointsForTestcases : testcase.percentagePoints,
+        points: testcase.points == null ? defaultPercentagePointsForTestcases : testcase.points,
         timeLimit: testcase.timeLimit || subtask.timeLimit || judgeInfo.timeLimit,
         memoryLimit: testcase.memoryLimit || subtask.memoryLimit || judgeInfo.memoryLimit
       }));
@@ -399,7 +396,7 @@ export async function runTask(
               compileResult,
               customCheckerCompileResult
             );
-            subtaskScore += (result.score * normalizedTestcases[i].percentagePoints) / 100;
+            subtaskScore += (result.score * normalizedTestcases[i].points) / 100;
             task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
             return result;
           })

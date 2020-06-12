@@ -5,8 +5,8 @@ import { SubmissionContentTraditional, TestcaseResultTraditional } from ".";
 import { Checker } from "@/checkers";
 
 export interface TestcaseConfig {
-  inputFilename?: string;
-  outputFilename?: string;
+  inputFile?: string;
+  outputFile?: string;
 
   // If one of these is null,
   // the one's default of the subtask if exists, or of problem is used
@@ -16,7 +16,7 @@ export interface TestcaseConfig {
   // The weight of this testcase in the subtask,
   // which should add up to 100 for all testcases of this subtask
   // Auto if not set
-  percentagePoints?: number;
+  points?: number;
 }
 
 export interface JudgeInfoTraditional {
@@ -61,7 +61,7 @@ export interface JudgeInfoTraditional {
     // The weight of this subtask in the problem,
     // which should add up to 100 for all subtasks of this problem
     // Auto if not set
-    percentagePoints?: number;
+    points?: number;
 
     // The IDs of subtasks this subtask depends
     // A subtask will be skipped if one of it dependencies fails
@@ -77,11 +77,11 @@ export async function validateTestcases(
   const { judgeInfo, testData } = task.extraInfo;
   if (judgeInfo.subtasks.length === 0) throw "No testcases.";
   judgeInfo.subtasks.forEach((subtask, i) =>
-    subtask.testcases.forEach(({ inputFilename, outputFilename }, j) => {
-      if (!(inputFilename in testData))
-        throw `Input file ${inputFilename} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
-      if (!(outputFilename in testData))
-        throw `Output file ${outputFilename} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
+    subtask.testcases.forEach(({ inputFile, outputFile }, j) => {
+      if (!(inputFile in testData))
+        throw `Input file ${inputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
+      if (!(outputFile in testData))
+        throw `Output file ${outputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
     })
   );
   if (judgeInfo.checker.type === "custom" && !(judgeInfo.checker.filename in testData))
@@ -107,8 +107,8 @@ export function hashSampleTestcase(judgeInfo: JudgeInfoTraditional, sample: Prob
 
 export function hashTestcase(judgeInfo: JudgeInfoTraditional, subtaskIndex: number, testcaseIndex: number) {
   return objectHash({
-    inputFilename: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].inputFilename,
-    outputFilename: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].outputFilename,
+    inputFile: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].inputFile,
+    outputFile: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].outputFile,
     timeLimit:
       judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].timeLimit ||
       judgeInfo.subtasks[subtaskIndex].timeLimit ||
