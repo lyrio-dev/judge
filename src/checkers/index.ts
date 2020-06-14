@@ -40,7 +40,10 @@ export type Checker =
   | CheckerTypeCustom;
 
 export interface CheckerResult {
-  score: number;
+  /**
+   * `score == null` means JudgementFailed.
+   */
+  score?: number;
   checkerMessage?: string;
 }
 
@@ -78,7 +81,9 @@ export function parseTestlibMessage(message: string): CheckerResult | string {
       checkerMessage: message
     };
   } else if (message.startsWith("FAIL")) {
-    return message;
+    return {
+      checkerMessage: message
+    };
   } else {
     return `Couldn't parse testlib's message: ${friendlyMessage}`;
   }

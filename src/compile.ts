@@ -194,16 +194,21 @@ async function doCompile(
     binaryDirectory.inside,
     compileTask.languageOptions
   );
-  const sandboxResult = await runSandbox(null, executeParameters, tempDirectory, [
-    {
-      mappedPath: sourceDirectory,
-      readOnly: true
-    },
-    {
-      mappedPath: binaryDirectory,
-      readOnly: false
-    }
-  ]);
+  const sandboxResult = await runSandbox({
+    taskId: null,
+    parameters: executeParameters,
+    tempDirectory,
+    extraMounts: [
+      {
+        mappedPath: sourceDirectory,
+        readOnly: true
+      },
+      {
+        mappedPath: binaryDirectory,
+        readOnly: false
+      }
+    ]
+  });
 
   const messageFile = joinPath(binaryDirectory, executeParameters.messageFile);
   const message = (await readFileOmitted(messageFile.outside, config.limit.compilerMessage)) || "";

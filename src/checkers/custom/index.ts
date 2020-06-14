@@ -71,9 +71,9 @@ export async function runCustomChecker(
     code,
     workingDirectory,
     async (stdin, stdout, stderr, parameters) =>
-      await runSandbox(
+      await runSandbox({
         taskId,
-        {
+        parameters: {
           ...getLanguage(checker.language).run(
             SANDBOX_INSIDE_PATH_BINARY,
             workingDirectory.inside,
@@ -90,7 +90,7 @@ export async function runCustomChecker(
           workingDirectory: workingDirectory.inside
         },
         tempDirectory,
-        [
+        extraMounts: [
           {
             mappedPath: {
               outside: checkerCompileResult.binaryDirectory,
@@ -103,6 +103,6 @@ export async function runCustomChecker(
             readOnly: false
           }
         ]
-      )
+      })
   );
 }

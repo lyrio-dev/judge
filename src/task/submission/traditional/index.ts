@@ -1,4 +1,3 @@
-import toposort = require("toposort");
 import fs = require("fs-extra");
 import { v4 as uuid } from "uuid";
 import du = require("du");
@@ -17,6 +16,7 @@ import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
 import { runBuiltinChecker } from "@/checkers/builtin";
 import { runCustomChecker, validateCustomChecker } from "@/checkers/custom";
+import { runCommonTask } from "../common";
 
 export * from "./judgeInfo";
 
@@ -61,16 +61,6 @@ export interface SubmissionContentTraditional {
   skipSamples?: boolean;
 }
 
-function getSubtaskOrder(judgeInfo: JudgeInfoTraditional) {
-  return toposort.array(
-    [...judgeInfo.subtasks.keys()],
-    judgeInfo.subtasks.reduce<[number, number][]>(
-      (edges, subtask, i) => edges.concat((subtask.dependencies || []).map(dependency => [dependency, i])),
-      []
-    )
-  );
-}
-
 /**
  * Run a subtask testcase or sample testcase.
  *
@@ -85,8 +75,7 @@ async function runTestcase(
   subtaskIndex: number,
   testcaseIndex: number,
   testcase: TestcaseConfig,
-  compileResult: CompileResultSuccess,
-  customCheckerCompileResult: CompileResultSuccess
+  [compileResult, customCheckerCompileResult]: [CompileResultSuccess, CompileResultSuccess]
 ): Promise<TestcaseResultTraditional> {
   return await runTaskQueued(async (taskWorkingDirectory: string) => {
     const isSample = sampleId != null;
@@ -138,9 +127,9 @@ async function runTestcase(
     const stderrFile = joinPath(workingDirectory, uuid());
 
     const languageConfig = getLanguage(task.extraInfo.submissionContent.language);
-    const sandboxResult = await runSandbox(
-      task.taskId,
-      {
+    const sandboxResult = await runSandbox({
+      taskId: task.taskId,
+      parameters: {
         ...languageConfig.run(
           binaryDirectory.inside,
           workingDirectory.inside,
@@ -156,7 +145,7 @@ async function runTestcase(
         workingDirectory: workingDirectory.inside
       },
       tempDirectory,
-      [
+      extraMounts: [
         {
           mappedPath: binaryDirectory,
           readOnly: true
@@ -166,7 +155,7 @@ async function runTestcase(
           readOnly: false
         }
       ]
-    );
+    });
 
     const workingDirectorySize = await du(workingDirectory.outside);
     const inputFileSize = await du(inputFile.outside);
@@ -227,8 +216,9 @@ async function runTestcase(
         result.score = 0;
         result.systemMessage = checkerResult;
       } else {
+        if (checkerResult.score == null) result.status = TestcaseStatusTraditional.JudgementFailed;
         result.checkerMessage = checkerResult.checkerMessage;
-        result.score = checkerResult.score;
+        result.score = checkerResult.score || 0;
       }
 
       if (result.status !== TestcaseStatusTraditional.JudgementFailed) {
@@ -240,7 +230,7 @@ async function runTestcase(
           result.status = TestcaseStatusTraditional.PartiallyCorrect;
         }
       }
-    }
+    } else result.score = 0;
 
     if (isSample) {
       task.reportProgress.sampleTestcaseFinished(sampleId, sample, result);
@@ -291,165 +281,16 @@ export async function runTask(
 
   if (!(compileResult instanceof CompileResultSuccess)) {
     task.reportProgress.finished(SubmissionStatus.CompilationError, 0);
+    if (customCheckerCompileResult) customCheckerCompileResult.dereference();
     return;
   }
 
   try {
-    const samples = task.extraInfo.samples;
-
-    const sumSpecfiedPercentagePointsForSubtasks = judgeInfo.subtasks
-      .map(testcase => testcase.points)
-      .filter(x => x != null)
-      .reduce((s, x) => s + x, 0);
-    const countUnspecfiedPercentagePointsForSubtasks = judgeInfo.subtasks.filter(testcase => testcase.points == null)
-      .length;
-    const defaultPercentagePointsForSubtasks =
-      (100 - sumSpecfiedPercentagePointsForSubtasks) / countUnspecfiedPercentagePointsForSubtasks;
-
-    const subtaskFullScores = judgeInfo.subtasks.map(subtask =>
-      subtask.points != null ? subtask.points : defaultPercentagePointsForSubtasks
-    );
-
-    const runSamples = judgeInfo.runSamples && samples && !task.extraInfo.submissionContent.skipSamples ? true : false;
-    task.reportProgress.startedRunning(runSamples && samples.length, subtaskFullScores);
-
-    let firstNonAcceptedStatus: TestcaseStatusTraditional = null;
-
-    // Run samples first
-    let samplesFailed = false;
-    if (runSamples) {
-      for (const i in samples) {
-        if (samplesFailed) {
-          task.reportProgress.sampleTestcaseFinished(Number(i), samples[i], null);
-          continue;
-        }
-
-        const result = await runTestcase(
-          task,
-          judgeInfo,
-          Number(i),
-          samples[i],
-          null,
-          null,
-          null,
-          compileResult,
-          customCheckerCompileResult
-        );
-        if (result.status !== TestcaseStatusTraditional.Accepted) {
-          samplesFailed = true;
-          firstNonAcceptedStatus = result.status;
-        }
-      }
-    }
-
-    const subtaskOrder = getSubtaskOrder(judgeInfo);
-    const subtaskScores: number[] = new Array(subtaskOrder.length);
-    let totalScore = 0;
-    for (const subtaskIndex of subtaskOrder) {
-      const subtask = judgeInfo.subtasks[subtaskIndex];
-
-      // If samples failed, skip all subtasks
-      // If any of a subtask's dependencies failed, skip it
-      if (
-        samplesFailed ||
-        (Array.isArray(subtask.dependencies) && subtask.dependencies.some(i => Math.round(subtaskScores[i]) === 0))
-      ) {
-        // Skip
-        task.reportProgress.subtaskScoreUpdated(subtaskIndex, 0);
-        for (const i in subtask.testcases) {
-          task.reportProgress.testcaseFinished(subtaskIndex, Number(i), null);
-        }
-        continue;
-      }
-
-      const sumSpecfiedPercentagePointsForTestcases = subtask.testcases
-        .map(testcase => testcase.points)
-        .filter(x => x != null)
-        .reduce((s, x) => s + x, 0);
-      const countUnspecfiedPercentagePointsForTestcases = subtask.testcases.filter(testcase => testcase.points == null)
-        .length;
-      const defaultPercentagePointsForTestcases =
-        (100 - sumSpecfiedPercentagePointsForTestcases) / countUnspecfiedPercentagePointsForTestcases;
-
-      const normalizedTestcases = subtask.testcases.map(testcase => ({
-        ...testcase,
-        points: testcase.points == null ? defaultPercentagePointsForTestcases : testcase.points,
-        timeLimit: testcase.timeLimit || subtask.timeLimit || judgeInfo.timeLimit,
-        memoryLimit: testcase.memoryLimit || subtask.memoryLimit || judgeInfo.memoryLimit
-      }));
-
-      let subtaskScore = 0;
-      if (subtask.scoringType !== "Sum") subtaskScore = 100;
-
-      let results: TestcaseResultTraditional[];
-      if (subtask.scoringType === "Sum") {
-        results = await Promise.all(
-          normalizedTestcases.map(async (testcase, i) => {
-            const result = await runTestcase(
-              task,
-              judgeInfo,
-              null,
-              null,
-              subtaskIndex,
-              i,
-              testcase,
-              compileResult,
-              customCheckerCompileResult
-            );
-            subtaskScore += (result.score * normalizedTestcases[i].points) / 100;
-            task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
-            return result;
-          })
-        );
-      } else {
-        results = [];
-        for (const i in normalizedTestcases) {
-          const testcase = normalizedTestcases[i];
-
-          if (Math.round(subtaskScore) === 0) {
-            task.reportProgress.testcaseFinished(subtaskIndex, Number(i), null);
-          } else {
-            const result = await runTestcase(
-              task,
-              judgeInfo,
-              null,
-              null,
-              subtaskIndex,
-              Number(i),
-              testcase,
-              compileResult,
-              customCheckerCompileResult
-            );
-            if (subtask.scoringType === "GroupMin") subtaskScore = Math.min(subtaskScore, result.score);
-            else subtaskScore = (subtaskScore * result.score) / 100;
-            task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
-            results.push(result);
-          }
-        }
-      }
-
-      if (firstNonAcceptedStatus === null) {
-        for (const result of results) {
-          if (result.status != TestcaseStatusTraditional.Accepted) {
-            firstNonAcceptedStatus = result.status;
-            break;
-          }
-        }
-      }
-
-      subtaskScores[subtaskIndex] = subtaskScore;
-      totalScore += (subtaskScore * subtaskFullScores[subtaskIndex]) / 100;
-    }
-
-    const roundedScore = totalScore > 100 ? 100 : Math.round(totalScore);
-    if (firstNonAcceptedStatus === null && roundedScore !== 100) {
-      // This shouldn't happen
-      throw new Error("Couldn't determine submission result status");
-    } else if (firstNonAcceptedStatus === null) {
-      task.reportProgress.finished(SubmissionStatus.Accepted, roundedScore);
-    } else {
-      task.reportProgress.finished((firstNonAcceptedStatus as unknown) as SubmissionStatus, roundedScore);
-    }
+    await runCommonTask({
+      task,
+      compileResults: [compileResult, customCheckerCompileResult],
+      onTestcase: runTestcase
+    });
   } finally {
     compileResult.dereference();
     if (customCheckerCompileResult) customCheckerCompileResult.dereference();

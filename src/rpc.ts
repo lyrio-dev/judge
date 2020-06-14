@@ -78,11 +78,11 @@ export class RPC {
   }
 
   isCanceled(taskId: string) {
-    return this.pendingTaskCancelCallback.has(taskId);
+    return !this.pendingTaskCancelCallback.has(taskId);
   }
 
   ensureNotCanceled(taskId: string) {
-    if (!this.isCanceled(taskId)) {
+    if (this.isCanceled(taskId)) {
       winston.info(`Task ${taskId} canceled`);
       throw new CanceledError();
     }

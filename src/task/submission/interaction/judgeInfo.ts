@@ -1,12 +1,10 @@
 import objectHash = require("object-hash");
 
 import { SubmissionTask, ProblemSample } from "@/task/submission";
-import { SubmissionContentTraditional, TestcaseResultTraditional } from ".";
-import { Checker } from "@/checkers";
+import { SubmissionContentInteraction, TestcaseResultInteraction } from ".";
 
 export interface TestcaseConfig {
   inputFile?: string;
-  outputFile?: string;
 
   // If one of these is null,
   // the one's default of the subtask if exists, or of problem is used
@@ -19,21 +17,13 @@ export interface TestcaseConfig {
   points?: number;
 }
 
-export interface JudgeInfoTraditional {
+export interface JudgeInfoInteraction {
   /*
    * The default time / memory limit
    * One is ignored in a subtask if the it defined its own default
    */
   timeLimit?: number;
   memoryLimit?: number;
-
-  /*
-   * Be null if not using file IO
-   */
-  fileIo?: {
-    inputFilename: string;
-    outputFilename: string;
-  };
 
   /*
    * If ture, samples in statement will be run before all subtasks
@@ -68,39 +58,41 @@ export interface JudgeInfoTraditional {
     dependencies?: number[];
   }[];
 
-  checker: Checker;
+  interactor: {
+    interface: "stdio" | "shm";
+    sharedMemorySize?: number;
+    language: string;
+    languageOptions: unknown;
+    filename: string;
+  };
 }
 
 export async function validateTestcases(
-  task: SubmissionTask<JudgeInfoTraditional, SubmissionContentTraditional, TestcaseResultTraditional>
+  task: SubmissionTask<JudgeInfoInteraction, SubmissionContentInteraction, TestcaseResultInteraction>
 ): Promise<void> {
   const { judgeInfo, testData } = task.extraInfo;
   if (judgeInfo.subtasks.length === 0) throw "No testcases.";
   judgeInfo.subtasks.forEach((subtask, i) =>
-    subtask.testcases.forEach(({ inputFile, outputFile }, j) => {
+    subtask.testcases.forEach(({ inputFile }, j) => {
       if (!(inputFile in testData))
         throw `Input file ${inputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
-      if (!(outputFile in testData))
-        throw `Output file ${outputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
     })
   );
-  if (judgeInfo.checker.type === "custom" && !(judgeInfo.checker.filename in testData))
-    throw `Custom checker ${judgeInfo.checker.filename} doesn't exist.`;
+  if (!judgeInfo.interactor) throw `Interactor not configured.`;
+  if (!(judgeInfo.interactor.filename in testData)) throw `Interactor ${judgeInfo.interactor.filename} doesn't exist.`;
 }
 
-export function hashSampleTestcase(judgeInfo: JudgeInfoTraditional, sample: ProblemSample) {
+export function hashSampleTestcase(judgeInfo: JudgeInfoInteraction, sample: ProblemSample) {
   return objectHash({
     inputData: sample.inputData,
-    outputData: sample.outputData,
     timeLimit: judgeInfo.timeLimit,
     memoryLimit: judgeInfo.memoryLimit
   });
 }
 
-export function hashTestcase(judgeInfo: JudgeInfoTraditional, subtaskIndex: number, testcaseIndex: number) {
+export function hashTestcase(judgeInfo: JudgeInfoInteraction, subtaskIndex: number, testcaseIndex: number) {
   return objectHash({
     inputFile: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].inputFile,
-    outputFile: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].outputFile,
     timeLimit:
       judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].timeLimit ||
       judgeInfo.subtasks[subtaskIndex].timeLimit ||

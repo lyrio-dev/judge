@@ -7,7 +7,7 @@ import config from "./config";
 import { setDirectoryPermission } from "./utils";
 import rpc from "./rpc";
 import { CanceledError } from "./error";
-import { SandboxResult, SandboxStatus } from "simple-sandbox";
+import { FileDescriptor } from "./posixUtils";
 
 export interface MappedPath {
   outside: string;
@@ -40,15 +40,16 @@ export interface ExecuteParameters {
   stackSize?: number; // Stack size limit, by default equals to the memory limit
   // Note that for some language runtimes a too large stack size could cause issues
   process: number; // The maximum process the executable can create (in the same time), including threads
-  stdin?: string; // The file the standard input being redirect to
-  stdout?: string; // The file the standard output being redirect to
-  stderr?: string; // The file the standard error being redirect to
+  stdin?: string | FileDescriptor; // The file the standard input being redirect to
+  stdout?: string | FileDescriptor; // The file the standard output being redirect to
+  stderr?: string | FileDescriptor; // The file the standard error being redirect to
 }
 
 export interface FullExecuteParameters extends ExecuteParameters {
   time: number; // Time limit
   memory: number; // Memory limit
   workingDirectory: string; // The working directory for the compiler or script
+  environments?: string[]; // Environment veriables
 }
 
 export interface SandboxMountDirectory {
@@ -63,12 +64,19 @@ export const SANDBOX_INSIDE_PATH_SOURCE = "/sandbox/source";
 /**
  * @param taskId If not null, it is used to determine if and be notified when the current is canceled.
  */
-export async function runSandbox(
-  taskId: string,
-  parameters: FullExecuteParameters,
-  tempDirectory: string,
-  extraMounts: SandboxMountDirectory[]
-) {
+export async function startSandbox({
+  taskId,
+  parameters,
+  tempDirectory,
+  extraMounts,
+  preservedFileDescriptors
+}: {
+  taskId: string;
+  parameters: FullExecuteParameters;
+  tempDirectory: string;
+  extraMounts: SandboxMountDirectory[];
+  preservedFileDescriptors?: FileDescriptor[];
+}) {
   if (taskId) rpc.ensureNotCanceled(taskId);
 
   let executable: string;
@@ -97,6 +105,10 @@ export async function runSandbox(
     await Promise.all(extraMounts.map(mount => setDirectoryPermission(mount.mappedPath.outside, !mount.readOnly)))
   ]);
 
+  if (taskId) rpc.ensureNotCanceled(taskId);
+
+  (preservedFileDescriptors || []).forEach(fd => fd && fd.setCloseOnExec(false));
+
   const sandboxParameter: Sandbox.SandboxParameter = {
     time: parameters.time,
     memory: parameters.memory,
@@ -111,36 +123,61 @@ export async function runSandbox(
     redirectBeforeChroot: false,
     mountProc: true,
     executable: executable,
-    stdin: parameters.stdin,
-    stdout: parameters.stdout,
-    stderr: parameters.stderr,
+    stdin: typeof parameters.stdin === "object" ? parameters.stdin.fd : parameters.stdin,
+    stdout: typeof parameters.stdout === "object" ? parameters.stdout.fd : parameters.stdout,
+    stderr: typeof parameters.stderr === "object" ? parameters.stderr.fd : parameters.stderr,
     user: config.sandbox.user,
     cgroup: uuid(),
     parameters: [executable, ...(parameters.parameters || []).filter(x => x != null)],
-    environments: config.sandbox.environments,
+    environments: config.sandbox.environments.concat(parameters.environments || []),
     workingDirectory: parameters.workingDirectory,
     stackSize: parameters.stackSize || parameters.memory
   };
 
-  if (taskId) rpc.ensureNotCanceled(taskId);
-
   const sandbox = Sandbox.startSandbox(sandboxParameter);
 
-  if (taskId) {
-    return new Promise<SandboxResult>(async (resolve, reject) => {
-      const off = rpc.onCancel(taskId, () => {
-        sandbox.stop();
-      });
+  (preservedFileDescriptors || []).forEach(fd => fd && fd.setCloseOnExec(true));
 
-      try {
-        const result = await sandbox.waitForStop();
-        off();
-        if (result.status === SandboxStatus.Cancelled) reject(new CanceledError());
-        else resolve(result);
-      } catch (e) {
-        off();
-        reject(e);
-      }
-    });
-  } else return await sandbox.waitForStop();
+  const resultPromise = taskId
+    ? new Promise<Sandbox.SandboxResult>(async (resolve, reject) => {
+        const off = rpc.onCancel(taskId, () => {
+          sandbox.stop();
+        });
+
+        try {
+          const result = await sandbox.waitForStop();
+          off();
+          if (rpc.isCanceled(taskId)) reject(new CanceledError());
+          else resolve(result);
+        } catch (e) {
+          off();
+          reject(e);
+        }
+      })
+    : sandbox.waitForStop();
+
+  return {
+    waitForStop: () => resultPromise,
+    stop: () => sandbox.stop()
+  };
+}
+
+/**
+ * @param taskId If not null, it is used to determine if and be notified when the current is canceled.
+ */
+export async function runSandbox({
+  taskId,
+  parameters,
+  tempDirectory,
+  extraMounts,
+  preservedFileDescriptors
+}: {
+  taskId: string;
+  parameters: FullExecuteParameters;
+  tempDirectory: string;
+  extraMounts: SandboxMountDirectory[];
+  preservedFileDescriptors?: FileDescriptor[];
+}) {
+  const sandbox = await startSandbox({ taskId, parameters, tempDirectory, extraMounts });
+  return await sandbox.waitForStop();
 }

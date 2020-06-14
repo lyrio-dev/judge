@@ -4,10 +4,10 @@
 #include <sys/wait.h>
 #include <cstdio>
 
-#include "builtin_checkers/integers.h"
-#include "builtin_checkers/floats.h"
-#include "builtin_checkers/lines.h"
-#include "builtin_checkers/binary.h"
+#include "integers.h"
+#include "floats.h"
+#include "lines.h"
+#include "binary.h"
 
 // Node.js does some clean-ups with atexit(), we need to register another atexit() handler
 // in the child process to be called before Node.js's handler to exit immediately.

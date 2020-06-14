@@ -1,5 +1,6 @@
 import { CompileParameters } from "@/compile";
 import { RunParameters } from "@/run";
+import { FileDescriptor } from "@/posixUtils";
 
 export interface LanguageConfig<T> {
   // The name of the langauge e.g. "cpp"
@@ -28,9 +29,9 @@ export interface LanguageConfig<T> {
     languageOptions: T, // Custom options passed by user
     time: number, // The time limit by the problem
     memory: number, // The memory limit by the problem
-    stdinFile?: string,
-    stdoutFile?: string,
-    stderrFile?: string,
+    stdinFile?: string | FileDescriptor,
+    stdoutFile?: string | FileDescriptor,
+    stderrFile?: string | FileDescriptor,
     parameters?: string[] // The parameters passed by command line, mainly used by custom checkers
   ) => RunParameters;
 }

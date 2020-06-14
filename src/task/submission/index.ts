@@ -2,11 +2,13 @@ import { Task } from "@/task";
 import { ensureFiles } from "@/file";
 import winston = require("winston");
 
-import * as Traditional from "./traditional";
 import { ConfigurationError, CanceledError } from "@/error";
+import * as Traditional from "./traditional";
+import * as Interaction from "./interaction";
 
 enum ProblemType {
-  TRADITIONAL = "TRADITIONAL"
+  TRADITIONAL = "TRADITIONAL",
+  INTERACTION = "INTERACTION"
 }
 
 export interface ProblemSample {
@@ -43,7 +45,6 @@ export enum SubmissionStatus {
   TimeLimitExceeded = "TimeLimitExceeded",
   MemoryLimitExceeded = "MemoryLimitExceeded",
   OutputLimitExceeded = "OutputLimitExceeded",
-  InvalidInteraction = "InvalidInteraction",
 
   PartiallyCorrect = "PartiallyCorrect",
   WrongAnswer = "WrongAnswer",
@@ -103,8 +104,6 @@ export interface SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>
 
 export interface SubmissionHandler<JudgeInfo, SubmissionContent, TestcaseResult> {
   validateTestcases: (task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>) => Promise<void>;
-  getSubtaskCount: (judgeInfo: JudgeInfo) => number;
-  getTestcaseCountOfSubtask: (judgeInfo: JudgeInfo, subtaskIndex: number) => number;
   hashTestcase: (judgeInfo: JudgeInfo, subtaskIndex: number, testcaseIndex: number) => string;
   hashSampleTestcase: (judgeInfo: JudgeInfo, sample: ProblemSample) => string;
 
@@ -112,8 +111,19 @@ export interface SubmissionHandler<JudgeInfo, SubmissionContent, TestcaseResult>
 }
 
 const problemTypeHandlers: Record<ProblemType, SubmissionHandler<unknown, unknown, unknown>> = {
-  [ProblemType.TRADITIONAL]: Traditional
+  [ProblemType.TRADITIONAL]: Traditional,
+  [ProblemType.INTERACTION]: Interaction
 };
+
+function getSubtaskCount(judgeInfo: unknown) {
+  if (judgeInfo["subtasks"]) return judgeInfo["subtasks"].length;
+  return 1; // Non-common type
+}
+
+function getTestcaseCountOfSubtask(judgeInfo: unknown, subtaskIndex: number) {
+  if (judgeInfo["subtasks"]) return judgeInfo["subtasks"][subtaskIndex]["testcases"].length;
+  return 1; // Non-common type
+}
 
 export default async function onSubmission(task: SubmissionTask<unknown, unknown, unknown>): Promise<void> {
   try {
@@ -163,14 +173,12 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
             waiting: true
           }));
         }
-        progress.subtasks = [...new Array(problemTypeHandler.getSubtaskCount(judgeInfo)).keys()].map(subtaskIndex => ({
+        progress.subtasks = [...new Array(getSubtaskCount(judgeInfo)).keys()].map(subtaskIndex => ({
           score: null,
           fullScore: subtaskFullScores[subtaskIndex],
-          testcases: [...new Array(problemTypeHandler.getTestcaseCountOfSubtask(judgeInfo, subtaskIndex)).keys()].map(
-            () => ({
-              waiting: true
-            })
-          )
+          testcases: [...new Array(getTestcaseCountOfSubtask(judgeInfo, subtaskIndex)).keys()].map(() => ({
+            waiting: true
+          }))
         }));
         task.reportProgressRaw(progress);
       },
