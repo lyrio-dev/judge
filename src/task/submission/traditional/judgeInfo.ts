@@ -3,6 +3,7 @@ import objectHash = require("object-hash");
 import { SubmissionTask, ProblemSample } from "@/task/submission";
 import { SubmissionContentTraditional, TestcaseResultTraditional } from ".";
 import { Checker } from "@/checkers";
+import { validateJudgeInfoSubtasks, validateJudgeInfoExtraSourceFiles } from "../common";
 
 export interface TestcaseConfig {
   inputFile?: string;
@@ -69,23 +70,22 @@ export interface JudgeInfoTraditional {
   }[];
 
   checker: Checker;
+
+  // The map of files to be copied to the source code directory when compileing for each code language
+  extraSourceFiles?: Partial<Record<string, Record<string, string>>>;
 }
 
-export async function validateTestcases(
+export async function validateJudgeInfo(
   task: SubmissionTask<JudgeInfoTraditional, SubmissionContentTraditional, TestcaseResultTraditional>
 ): Promise<void> {
   const { judgeInfo, testData } = task.extraInfo;
-  if (judgeInfo.subtasks.length === 0) throw "No testcases.";
-  judgeInfo.subtasks.forEach((subtask, i) =>
-    subtask.testcases.forEach(({ inputFile, outputFile }, j) => {
-      if (!(inputFile in testData))
-        throw `Input file ${inputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
-      if (!(outputFile in testData))
-        throw `Output file ${outputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
-    })
-  );
+
+  validateJudgeInfoSubtasks(judgeInfo, testData);
+
   if (judgeInfo.checker.type === "custom" && !(judgeInfo.checker.filename in testData))
     throw `Custom checker ${judgeInfo.checker.filename} doesn't exist.`;
+
+  validateJudgeInfoExtraSourceFiles(judgeInfo, testData);
 }
 
 export function hashSampleTestcase(judgeInfo: JudgeInfoTraditional, sample: ProblemSample) {

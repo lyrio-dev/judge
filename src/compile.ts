@@ -18,6 +18,7 @@ import {
 } from "./sandbox";
 import config from "./config";
 import { runTaskQueued } from "./taskQueue";
+import { getFile } from "./file";
 
 export interface CompileParameters extends ExecuteParameters {
   time: number; // Time limit
@@ -30,6 +31,7 @@ export interface CompileTask {
   language: string;
   code: string;
   languageOptions: unknown;
+  extraSourceFiles?: Record<string, string>;
 }
 
 export interface CompileResult {
@@ -185,6 +187,12 @@ async function doCompile(
     ensureDirectoryEmpty(binaryDirectory.outside),
     ensureDirectoryEmpty(tempDirectory)
   ]);
+
+  await Promise.all(
+    Object.entries(compileTask.extraSourceFiles || {}).map(([dst, src]) =>
+      fs.copyFile(getFile(src), joinPath(sourceDirectory.outside, dst))
+    )
+  );
 
   const sourceFile = joinPath(sourceDirectory, sourceFilename);
   await fs.writeFile(sourceFile.outside, compileTask.code);

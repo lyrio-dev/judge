@@ -205,3 +205,56 @@ export async function runCommonTask<
     task.reportProgress.finished((firstNonAcceptedStatus as unknown) as SubmissionStatus, roundedScore);
   }
 }
+
+interface JudgeInfoWithSubtasks {
+  subtasks: {
+    testcases: {
+      inputFile?: string;
+      outputFile?: string;
+    }[];
+  }[];
+}
+
+export function validateJudgeInfoSubtasks(
+  judgeInfo: JudgeInfoWithSubtasks,
+  testData: Record<string, string>,
+  enableOutputFile: boolean = true
+) {
+  if (judgeInfo.subtasks.length === 0) throw "No testcases.";
+  judgeInfo.subtasks.forEach((subtask, i) =>
+    subtask.testcases.forEach(({ inputFile, outputFile }, j) => {
+      if (!(inputFile in testData))
+        throw `Input file ${inputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
+      if (enableOutputFile && !(outputFile in testData))
+        throw `Output file ${outputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
+    })
+  );
+}
+
+interface JudgeInfoWithExtraSourceFiles {
+  extraSourceFiles?: Partial<Record<string, Record<string, string>>>;
+}
+
+export function validateJudgeInfoExtraSourceFiles(
+  judgeInfo: JudgeInfoWithExtraSourceFiles,
+  testData: Record<string, string>
+) {
+  if (!judgeInfo.extraSourceFiles) return;
+
+  Object.entries(judgeInfo.extraSourceFiles).forEach(([language, fileMap]) => {
+    Object.entries(fileMap).forEach(([dst, src]) => {
+      if (!(src in testData))
+        throw `Extra source file ${src} (mapped to ${dst}, for language ${language}) doesn't exist.`;
+    });
+  });
+}
+
+export function getExtraSourceFiles(
+  judgeInfo: JudgeInfoWithExtraSourceFiles,
+  testData: Record<string, string>,
+  language: string
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries((judgeInfo.extraSourceFiles || {})[language] || {}).map(([dst, src]) => [dst, testData[src]])
+  );
+}

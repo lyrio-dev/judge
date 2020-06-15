@@ -13,7 +13,7 @@ import config from "@/config";
 import { readFileOmitted, stringToOmited } from "@/utils";
 import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
-import { runCommonTask } from "../common";
+import { runCommonTask, getExtraSourceFiles } from "../common";
 import { createPipe, createSharedMemory } from "@/posixUtils";
 import { parseTestlibMessage } from "@/checkers";
 
@@ -286,7 +286,8 @@ export async function runTask(
   const compileResult = await compile({
     language: task.extraInfo.submissionContent.language,
     code: task.extraInfo.submissionContent.code,
-    languageOptions: task.extraInfo.submissionContent.languageOptions
+    languageOptions: task.extraInfo.submissionContent.languageOptions,
+    extraSourceFiles: getExtraSourceFiles(judgeInfo, task.extraInfo.testData, task.extraInfo.submissionContent.language)
   });
 
   task.reportProgress.compiled({

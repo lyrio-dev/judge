@@ -2,6 +2,7 @@ import objectHash = require("object-hash");
 
 import { SubmissionTask, ProblemSample } from "@/task/submission";
 import { SubmissionContentInteraction, TestcaseResultInteraction } from ".";
+import { validateJudgeInfoSubtasks, validateJudgeInfoExtraSourceFiles } from "../common";
 
 export interface TestcaseConfig {
   inputFile?: string;
@@ -65,21 +66,22 @@ export interface JudgeInfoInteraction {
     languageOptions: unknown;
     filename: string;
   };
+
+  // The map of files to be copied to the source code directory when compileing for each code language
+  extraSourceFiles?: Partial<Record<string, Record<string, string>>>;
 }
 
-export async function validateTestcases(
+export async function validateJudgeInfo(
   task: SubmissionTask<JudgeInfoInteraction, SubmissionContentInteraction, TestcaseResultInteraction>
 ): Promise<void> {
   const { judgeInfo, testData } = task.extraInfo;
-  if (judgeInfo.subtasks.length === 0) throw "No testcases.";
-  judgeInfo.subtasks.forEach((subtask, i) =>
-    subtask.testcases.forEach(({ inputFile }, j) => {
-      if (!(inputFile in testData))
-        throw `Input file ${inputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
-    })
-  );
+
+  validateJudgeInfoSubtasks(judgeInfo, testData, false);
+
   if (!judgeInfo.interactor) throw `Interactor not configured.`;
   if (!(judgeInfo.interactor.filename in testData)) throw `Interactor ${judgeInfo.interactor.filename} doesn't exist.`;
+
+  validateJudgeInfoExtraSourceFiles(judgeInfo, testData);
 }
 
 export function hashSampleTestcase(judgeInfo: JudgeInfoInteraction, sample: ProblemSample) {

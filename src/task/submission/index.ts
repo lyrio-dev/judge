@@ -103,7 +103,7 @@ export interface SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>
 }
 
 export interface SubmissionHandler<JudgeInfo, SubmissionContent, TestcaseResult> {
-  validateTestcases: (task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>) => Promise<void>;
+  validateJudgeInfo: (task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>) => Promise<void>;
   hashTestcase: (judgeInfo: JudgeInfo, subtaskIndex: number, testcaseIndex: number) => string;
   hashSampleTestcase: (judgeInfo: JudgeInfo, sample: ProblemSample) => string;
 
@@ -140,7 +140,7 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
 
     const problemTypeHandler = problemTypeHandlers[task.extraInfo.problemType];
     try {
-      await problemTypeHandler.validateTestcases(task);
+      await problemTypeHandler.validateJudgeInfo(task);
     } catch (e) {
       if (typeof e === "string") throw new ConfigurationError(e);
       else throw e;
