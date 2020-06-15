@@ -13,12 +13,13 @@ The judge client of next-generation SYZOJ.
 * Download files from server automatically.
 * Run multiple tasks of multiple submissions in the same time.
 * Cache compiled binary files to save judging time.
+* Custom checkers with multiple interfaces for Traditional problems.
+* Interaction problems with stdio or shared memory interaction interface.
 * Security and resources limitting powered by [simple-sandbox](https://github.com/t123yh/simple-sandbox).
 
 These features are on the plan:
 
-* Custom checkers
-* Other types of problem (SubmitAnswer, Interaction, ...)
+* Other types of problem (SubmitAnswer, ...)
 * Other forms of task (Hack, CustomTest, ...)
 * Other languages
 
