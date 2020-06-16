@@ -220,15 +220,21 @@ export function validateJudgeInfoSubtasks(
   testData: Record<string, string>,
   enableOutputFile: boolean = true
 ) {
-  if (judgeInfo.subtasks.length === 0) throw "No testcases.";
-  judgeInfo.subtasks.forEach((subtask, i) =>
+  if (
+    judgeInfo.subtasks.length === 0 ||
+    (judgeInfo.subtasks.length === 1 && judgeInfo.subtasks[0].testcases.length === 0)
+  )
+    throw "No testcases.";
+  judgeInfo.subtasks.forEach((subtask, i) => {
+    if (subtask.testcases.length === 0) throw `Subtask ${i + 1} has no testcases.`;
+
     subtask.testcases.forEach(({ inputFile, outputFile }, j) => {
       if (!(inputFile in testData))
         throw `Input file ${inputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
       if (enableOutputFile && !(outputFile in testData))
         throw `Output file ${outputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
-    })
-  );
+    });
+  });
 }
 
 interface JudgeInfoWithExtraSourceFiles {
