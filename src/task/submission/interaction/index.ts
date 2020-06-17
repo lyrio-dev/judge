@@ -37,7 +37,7 @@ export interface TestcaseResultInteraction {
   testcaseInfo: {
     timeLimit: number;
     memoryLimit: number;
-    inputFilename: string;
+    inputFile: string;
   };
   status: TestcaseStatusInteraction;
   score: number;
@@ -90,7 +90,7 @@ async function runTestcase(
       testcaseInfo: {
         timeLimit: timeLimit,
         memoryLimit: memoryLimit,
-        inputFilename: isSample ? null : testcase.inputFile
+        inputFile: isSample ? null : testcase.inputFile
       },
       status: null,
       score: 0
