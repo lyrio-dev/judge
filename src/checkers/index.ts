@@ -30,6 +30,8 @@ export interface CheckerTypeCustom {
   language: string;
   languageOptions: unknown;
   filename: string;
+  timeLimit?: number;
+  memoryLimit?: number;
 }
 
 export type Checker =

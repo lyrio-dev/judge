@@ -109,11 +109,7 @@ Create a copy of the config file, then edit it:
     // The max bytes of user's output file and testdata to display to the user, the remaining will be omitted
     "dataDisplay": 128,
     // The max bytes of user's stderr output to display to the user, the remaining will be omitted
-    "stderrDisplay": 5120,
-    // The time limit of custom checkers
-    "customCheckerTime": 2000,
-    // The memory limit of custom checkers
-    "customCheckerMemory": 512
+    "stderrDisplay": 5120
   }
 }
 ```

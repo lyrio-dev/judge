@@ -200,6 +200,8 @@ async function runTestcase(
           ? await runCustomChecker(
               task.taskId,
               judgeInfo.checker,
+              judgeInfo.checker.timeLimit || judgeInfo.timeLimit,
+              judgeInfo.checker.memoryLimit || judgeInfo.memoryLimit,
               customCheckerCompileResult,
               inputFile,
               outputFile,

@@ -65,6 +65,8 @@ export interface JudgeInfoInteraction {
     language: string;
     languageOptions: unknown;
     filename: string;
+    timeLimit?: number;
+    memoryLimit?: number;
   };
 
   // The map of files to be copied to the source code directory when compileing for each code language

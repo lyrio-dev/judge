@@ -59,14 +59,6 @@ export class LimitConfig {
   @IsNumber()
   @IsPositive()
   stderrDisplay: number;
-
-  @IsNumber()
-  @IsPositive()
-  customCheckerTime: number;
-
-  @IsNumber()
-  @IsPositive()
-  customCheckerMemory: number;
 }
 
 export class Config {

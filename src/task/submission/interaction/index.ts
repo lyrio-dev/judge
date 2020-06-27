@@ -164,6 +164,9 @@ async function runTestcase(
       preservedFileDescriptors: [pipeInteractorToUser.read, pipeUserToInteractor.write, sharedMemory]
     });
 
+    // By default use the testcase's time limit.
+    const interactorTimeLimit = Math.max(timeLimit, judgeInfo.interactor.timeLimit || timeLimit);
+    const interactorMemoryLimit = judgeInfo.interactor.memoryLimit || judgeInfo.memoryLimit;
     const interactorSandbox = await startSandbox({
       taskId: task.taskId,
       parameters: {
@@ -171,15 +174,15 @@ async function runTestcase(
           interactorBinaryDirectory.inside,
           workingDirectory.inside,
           task.extraInfo.submissionContent.languageOptions,
-          timeLimit,
-          config.limit.customCheckerMemory,
+          interactorTimeLimit,
+          interactorMemoryLimit,
           pipeUserToInteractor.read,
           pipeInteractorToUser.write,
           interactorStderrFile.inside,
           [inputFile.inside, "/dev/null"]
         ),
-        time: timeLimit,
-        memory: config.limit.customCheckerMemory * 1024 * 1024,
+        time: interactorTimeLimit,
+        memory: interactorMemoryLimit * 1024 * 1024,
         workingDirectory: workingDirectory.inside,
         environments: [
           `INTERACTOR_INTERFACE=${judgeInfo.interactor.interface}`,

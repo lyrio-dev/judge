@@ -55,6 +55,8 @@ export function validateCustomChecker(checker: CheckerTypeCustom) {
 export async function runCustomChecker(
   taskId: string,
   checker: CheckerTypeCustom,
+  timeLimit: number,
+  memoryLimit: number,
   checkerCompileResult: CompileResultSuccess,
   inputFile: MappedPath,
   outputFile: MappedPath,
@@ -78,15 +80,15 @@ export async function runCustomChecker(
             SANDBOX_INSIDE_PATH_BINARY,
             workingDirectory.inside,
             checker.languageOptions,
-            config.limit.customCheckerTime,
-            config.limit.customCheckerMemory,
+            timeLimit,
+            memoryLimit,
             stdin,
             stdout,
             stderr,
             parameters
           ),
-          time: config.limit.customCheckerTime,
-          memory: config.limit.customCheckerMemory * 1024 * 1024,
+          time: timeLimit,
+          memory: memoryLimit * 1024 * 1024,
           workingDirectory: workingDirectory.inside
         },
         tempDirectory,
