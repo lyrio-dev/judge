@@ -17,6 +17,7 @@ import { resolve } from "path";
 import os = require("os");
 import fs = require("fs-extra");
 import winston = require("winston");
+import yaml = require("js-yaml");
 
 import { ensureDirectoryEmptySync } from "./utils";
 
@@ -111,7 +112,7 @@ if (!filePath) {
   process.exit(1);
 }
 
-const parsedConfig = JSON.parse(fs.readFileSync(filePath).toString("utf-8"));
+const parsedConfig = yaml.safeLoad(fs.readFileSync(filePath).toString("utf-8"));
 const config = plainToClass(Config, parsedConfig);
 const errors = validateSync(config);
 if (errors.length > 0) {

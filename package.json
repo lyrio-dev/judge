@@ -8,6 +8,7 @@
   "dependencies": {
     "@types/du": "^1.0.0",
     "@types/fs-extra": "^9.0.1",
+    "@types/js-yaml": "^3.12.5",
     "@types/klaw": "^3.0.1",
     "@types/lodash.debounce": "^4.0.6",
     "@types/lru-cache": "^5.1.0",
@@ -23,6 +24,7 @@
     "cmake-js": "^6.1.0",
     "du": "^1.0.0",
     "fs-extra": "^9.0.1",
+    "js-yaml": "^3.14.0",
     "klaw": "^3.0.0",
     "lodash.debounce": "^4.0.8",
     "lru-cache": "^5.1.1",

@@ -48,76 +48,70 @@ You may need to specify `CXX` environment variable to build with your C++ 17 com
 ```bash
 $ export CXX=g++-8
 $ yarn
-$ cp config-example.json config.json
+$ cp config-example.yaml config.yaml
 ```
 
 Add a judge client to your SYZOJ NG server with `/api/judgeClient/addJudgeClient` and copy the `key` in the response.
 
 Create a copy of the config file, then edit it:
 
-```json5
-{
-  // The server url without "/api"
-  "serverUrl": "http://syzoj-ng.test/",
-  // The key of this judge client from SYZOJ NG server
-  "key": "40uXJPXzuO2Ha41iuh8Pjw1h0ahvP9i/zJk7Rtn/",
-  // The path to store files downloaded from server, will be created if not exists
-  "dataStore": "/root/judge/data",
-  // The path to store compiled binaries, will be created if not exists
-  // WILL be emptied on each start
-  "binaryCacheStore": "/root/judge/cache",
-  // The max size of the path above
-  // Note that it's "soft limit", if a binary is disposed from the cache but currently using
-  // it will not be deleted before releasing and new binaries will still added
-  "binaryCacheMaxSize": 536870912,
-  // The number of judge tasks consuming in the same time (a judge task is something like a submission)
-  "taskConsumingThreads": 2,
-  // The number of files downloading in the same time
-  "maxConcurrentDownloads": 10,
-  // The number of run tasks in the same time (a run task is something like compiling code or running a testcase)
-  // Each run task need a separated working directory
-  // It's recommended to ues unique tmpfs mount point for each task to have better output size limiting and performance
-  "maxConcurrentTasks": 3,
-  "taskWorkingDirectories": [
-    "/root/judge/1",
-    "/root/judge/2",
-    "/root/judge/3"
-  ],
-  "sandbox": {
-    // The sandbox rootfs (see the "Sandbox Rootfs" section of README)
-    "rootfs": "/opt/sandbox-test/rootfs",
-    // The user to use in the sandbox
-    // Do NOT modify it unless you know what you're doing
-    "user": "nobody",
-    // The hostname inside the sandbox. Leave null to use the same as the outside hostname
-    "hostname": "sandbox",
-    // The environment variables for the sandbox
-    // Do NOT modify it unless you know what you're doing
-    "environments": [
-      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-      "HOME=/tmp"
-    ]
-  },
-  "limit": {
-    // The max bytes of compiler message to display to the user, the remaining will be omitted
-    "compilerMessage": 524288,
-    // The max output size of user program, the user will get a OutputLimitExceeded if exceeds
-    // Note that it's done with checking the output files' size so
-    // the user program can still write a large file to occupy the disk size
-    // if you're not using size limited tmpfs for task working directories
-    "outputSize": 104857600,
-    // The max bytes of user's output file and testdata to display to the user, the remaining will be omitted
-    "dataDisplay": 128,
-    // The max bytes of user's stderr output to display to the user, the remaining will be omitted
-    "stderrDisplay": 5120
-  }
-}
+```yaml
+// The server url without "/api"
+serverUrl: http://syzoj-ng.test/
+// The key of this judge client from SYZOJ NG server
+key: 40uXJPXzuO2Ha41iuh8Pjw1h0ahvP9i/zJk7Rtn/
+// The path to store files downloaded from server, will be created if not exists
+dataStore: /root/judge/data
+// The path to store compiled binaries, will be created if not exists
+// WILL be emptied on each start
+binaryCacheStore: /root/judge/cache
+// The max size of the path above
+// Note that it's "soft limit", if a binary is disposed from the cache but currently using
+// it will not be deleted before releasing and new binaries will still added
+binaryCacheMaxSize: 536870912
+// The number of judge tasks consuming in the same time (a judge task is something like a submission)
+taskConsumingThreads: 2
+// The number of files downloading in the same time
+maxConcurrentDownloads: 10
+// The number of run tasks in the same time (a run task is something like compiling code or running a testcase)
+// Each run task need a separated working directory
+// It's recommended to ues unique tmpfs mount point for each task to have better output size limiting and performance
+maxConcurrentTasks: 3
+taskWorkingDirectories:
+  - /root/judge/1
+  - /root/judge/2
+  - /root/judge/3
+sandbox:
+  // The sandbox rootfs (see the "Sandbox Rootfs" section of README)
+  rootfs: /opt/sandbox-test/rootfs
+  // The user to use in the sandbox
+  // Do NOT modify it unless you know what you're doing
+  user: nobody
+  // The hostname inside the sandbox. Leave null to use the same as the outside hostname
+  hostname: null
+  // The environment variables for the sandbox
+  // Do NOT modify it unless you know what you're doing
+  environments:
+    - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    - HOME=/tmp
+limit:
+  // The max bytes of compiler message to display to the user, the remaining will be omitted
+  compilerMessage: 524288
+  // The max output size of user program, the user will get a OutputLimitExceeded if exceeds
+  // Note that it's done with checking the output files' size so
+  // the user program can still write a large file to occupy the disk size
+  // if you're not using size limited tmpfs for task working directories
+  outputSize: 104857600
+  // The max bytes of user's output file and testdata to display to the user, the remaining will be omitted
+  dataDisplay: 128
+  // The max bytes of user's stderr output to display to the user, the remaining will be omitted
+  stderrDisplay: 5120
 ```
 
 Start it with:
 
 ```
-$ SYZOJ_NG_JUDGE_CONFIG_FILE=./config.json yarn start
+$ SYZOJ_NG_JUDGE_CONFIG_FILE=./config.yaml yarn start
 ```
 
 # Parallel Judging
