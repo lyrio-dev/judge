@@ -43,7 +43,7 @@
     "typescript": "^3.9.5",
     "uuid": "^8.1.0",
     "valid-filename": "^3.1.0",
-    "winston": "^3.2.1"
+    "winston": "^3.3.2"
   },
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\"",
