@@ -1,0 +1,29 @@
+name: CI
+
+on:
+- push
+- pull_request
+
+env:
+  CI: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out
+      uses: actions/checkout@v2
+    - name: Set up Node
+      uses: actions/setup-node@v2-beta
+      with:
+        node-version: 14.x
+    - name: Install build dependencies
+      run: apt-get update && apt-get install -y install libfmt-dev
+    - name: Install
+      run: CXX=clang++-9 yarn
+    - name: Build
+      run: yarn build
+    - name: Lint
+      run: yarn lint
+    - name: Check style
+      run: yarn format --check
