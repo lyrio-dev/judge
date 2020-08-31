@@ -1,15 +1,16 @@
-import SocketIO = require("socket.io-client");
-import winston = require("winston");
-import lodashDebounce = require("lodash.debounce");
+import SocketIO from "socket.io-client";
+import winston from "winston";
+import lodashDebounce from "lodash.debounce";
 
 import config from "./config";
-import { Task } from "./task";
-import taskHandler from "./task";
+import taskHandler, { Task } from "./task";
+
 import getSystemInfo from "./systemInfo";
 import { CanceledError } from "./error";
 
 export class RPC {
   private socket: SocketIOClient.Socket;
+
   private ready: boolean = false;
 
   /**
@@ -20,8 +21,6 @@ export class RPC {
    */
   private pendingTaskCancelCallback: Map<string, Set<() => void>> = new Map();
 
-  constructor() {}
-
   connect() {
     winston.info("Trying to connect to the server...");
 
@@ -30,7 +29,7 @@ export class RPC {
       this.socket.close();
     }
 
-    this.socket = SocketIO(config.serverUrl + "judge", {
+    this.socket = SocketIO(`${config.serverUrl}judge`, {
       path: "/api/socket",
       reconnection: true,
       transports: ["websocket"],
@@ -133,7 +132,7 @@ export class RPC {
   }
 
   async startTaskConsumerThread(threadId: number) {
-    while (true) {
+    for (;;) {
       await this.ensureReady();
 
       this.socket.emit("consumeTask", threadId);

@@ -1,8 +1,9 @@
 import { SandboxStatus } from "simple-sandbox";
 
-import { CustomChecker } from ".";
 import { joinPath } from "@/sandbox";
 import { readFileOmitted } from "@/utils";
+
+import { CustomChecker } from ".";
 
 enum DomjudgeCheckerReturnCode {
   AC = 42,
@@ -10,7 +11,15 @@ enum DomjudgeCheckerReturnCode {
 }
 
 export const checker: CustomChecker = {
-  async runChecker(checker, inputFile, outputFile, answerFile, code, workingDirectory, runSandboxForCustomChecker) {
+  async runChecker(
+    checkerConfig,
+    inputFile,
+    outputFile,
+    answerFile,
+    code,
+    workingDirectory,
+    runSandboxForCustomChecker
+  ) {
     const sandboxResult = await runSandboxForCustomChecker(outputFile.inside, null, null, [
       inputFile.inside,
       answerFile.inside,

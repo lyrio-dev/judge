@@ -1,7 +1,9 @@
+import * as fs from "fs-extra";
+
+import { join } from "path";
+
 import * as Sandbox from "simple-sandbox";
 import { v4 as uuid } from "uuid";
-import * as fs from "fs-extra";
-import { join } from "path";
 
 import config from "./config";
 import { setDirectoryPermission } from "./utils";
@@ -122,7 +124,7 @@ export async function startSandbox({
     })),
     redirectBeforeChroot: false,
     mountProc: true,
-    executable: executable,
+    executable,
     stdin: typeof parameters.stdin === "object" ? (parameters.stdin || {}).fd : parameters.stdin,
     stdout: typeof parameters.stdout === "object" ? (parameters.stdout || {}).fd : parameters.stdout,
     stderr: typeof parameters.stderr === "object" ? (parameters.stderr || {}).fd : parameters.stderr,
@@ -139,7 +141,8 @@ export async function startSandbox({
   (preservedFileDescriptors || []).forEach(fd => fd && fd.setCloseOnExec(true));
 
   const resultPromise = taskId
-    ? new Promise<Sandbox.SandboxResult>(async (resolve, reject) => {
+    ? // eslint-disable-next-line no-async-promise-executor
+      new Promise<Sandbox.SandboxResult>(async (resolve, reject) => {
         const off = rpc.onCancel(taskId, () => {
           sandbox.stop();
         });

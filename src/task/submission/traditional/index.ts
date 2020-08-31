@@ -1,12 +1,13 @@
-import fs = require("fs-extra");
+import fs from "fs-extra";
+
 import { v4 as uuid } from "uuid";
-import du = require("du");
-import winston = require("winston");
+import du from "du";
+import winston from "winston";
 import { SandboxStatus } from "simple-sandbox";
 
 import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
-import { JudgeInfoTraditional, TestcaseConfig } from "./judgeInfo";
+
 import { runTaskQueued } from "@/taskQueue";
 import { runSandbox, joinPath, MappedPath, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
@@ -16,6 +17,9 @@ import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
 import { runBuiltinChecker } from "@/checkers/builtin";
 import { runCustomChecker, validateCustomChecker } from "@/checkers/custom";
+
+import { JudgeInfoTraditional, TestcaseConfig } from "./judgeInfo";
+
 import { runCommonTask, getExtraSourceFiles } from "../common";
 
 export * from "./judgeInfo";
@@ -93,8 +97,8 @@ async function runTestcase(
 
     const result: TestcaseResultTraditional = {
       testcaseInfo: {
-        timeLimit: timeLimit,
-        memoryLimit: memoryLimit,
+        timeLimit,
+        memoryLimit,
         inputFile: isSample ? null : testcase.inputFile,
         outputFile: isSample ? null : testcase.outputFile
       },
@@ -167,9 +171,9 @@ async function runTestcase(
       result.status = TestcaseStatusTraditional.MemoryLimitExceeded;
     } else if (sandboxResult.status === SandboxStatus.RuntimeError) {
       result.status = TestcaseStatusTraditional.RuntimeError;
-      result.systemMessage = "Exit code: " + sandboxResult.code;
+      result.systemMessage = `Exit code: ${sandboxResult.code}`;
     } else if (sandboxResult.status !== SandboxStatus.OK) {
-      throw new Error("Corrupt sandbox result: " + JSON.stringify(sandboxResult));
+      throw new Error(`Corrupt sandbox result: ${JSON.stringify(sandboxResult)}`);
     } else if (!(await fs.pathExists(outputFile.outside))) {
       result.status = TestcaseStatusTraditional.FileError;
     }
@@ -249,7 +253,7 @@ async function runTestcase(
 export async function runTask(
   task: SubmissionTask<JudgeInfoTraditional, SubmissionContentTraditional, TestcaseResultTraditional>
 ) {
-  const judgeInfo = task.extraInfo.judgeInfo;
+  const { judgeInfo } = task.extraInfo;
 
   task.reportProgress.compiling();
 

@@ -1,8 +1,10 @@
-import objectHash = require("object-hash");
+import objectHash from "object-hash";
 
 import { SubmissionTask, ProblemSample } from "@/task/submission";
-import { SubmissionContentTraditional, TestcaseResultTraditional } from ".";
+
 import { Checker } from "@/checkers";
+
+import { SubmissionContentTraditional, TestcaseResultTraditional } from ".";
 import { validateJudgeInfoSubtasks, validateJudgeInfoExtraSourceFiles } from "../common";
 
 export interface TestcaseConfig {
@@ -75,6 +77,7 @@ export interface JudgeInfoTraditional {
   extraSourceFiles?: Partial<Record<string, Record<string, string>>>;
 }
 
+/* eslint-disable no-throw-literal */
 export async function validateJudgeInfo(
   task: SubmissionTask<JudgeInfoTraditional, SubmissionContentTraditional, TestcaseResultTraditional>
 ): Promise<void> {
@@ -87,6 +90,7 @@ export async function validateJudgeInfo(
 
   validateJudgeInfoExtraSourceFiles(judgeInfo, testData);
 }
+/* eslint-enable no-throw-literal */
 
 export function hashSampleTestcase(judgeInfo: JudgeInfoTraditional, sample: ProblemSample) {
   return objectHash({

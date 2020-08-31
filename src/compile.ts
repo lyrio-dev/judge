@@ -1,9 +1,10 @@
+import fs from "fs-extra";
+
 import { SandboxStatus } from "simple-sandbox";
-import objectHash = require("object-hash");
-import fs = require("fs-extra");
-import du = require("du");
-import LruCache = require("lru-cache");
-import winston = require("winston");
+import objectHash from "object-hash";
+import du from "du";
+import LruCache from "lru-cache";
+import winston from "winston";
 import { v4 as uuid } from "uuid";
 
 import getLanguage, { LanguageConfig } from "./languages";
@@ -140,7 +141,7 @@ export async function compile(compileTask: CompileTask): Promise<CompileResult> 
     pendingCompileTasks.set(
       taskHash,
       (pendingCompileTask = {
-        resultConsumers: resultConsumers,
+        resultConsumers,
         promise: runTaskQueued(async taskWorkingDirectory => {
           // The compileResult is already reference()-ed
           const compileResult = await doCompile(compileTask, taskHash, languageConfig, taskWorkingDirectory);
@@ -156,7 +157,9 @@ export async function compile(compileTask: CompileTask): Promise<CompileResult> 
   }
 
   let result: CompileResult;
-  pendingCompileTask.resultConsumers.push(r => (result = r));
+  pendingCompileTask.resultConsumers.push(r => {
+    result = r;
+  });
   await pendingCompileTask.promise;
 
   return result;
@@ -228,17 +231,12 @@ async function doCompile(
       if (binaryDirectorySize > binarySizeLimit) {
         return {
           success: false,
-          message: (
-            `The source code compiled to ${binaryDirectorySize} bytes, exceeded the size limit.\n\n` + message
-          ).trim()
+          message: `The source code compiled to ${binaryDirectorySize} bytes, exceeded the size limit.\n\n${message}`.trim()
         };
       } else if (binaryDirectorySize > config.binaryCacheMaxSize) {
         return {
           success: false,
-          message: (
-            `The source code compiled to ${binaryDirectorySize} bytes, exceeded the limit of cache storage.\n\n` +
-            message
-          ).trim()
+          message: `The source code compiled to ${binaryDirectorySize} bytes, exceeded the limit of cache storage.\n\n${message}`.trim()
         };
       } else {
         // We must done copying it to the cache before reaching the "finally" block in this function
@@ -250,13 +248,13 @@ async function doCompile(
     } else {
       return {
         success: false,
-        message: message
+        message
       };
     }
   } else {
     return {
       success: false,
-      message: (`A ${SandboxStatus[sandboxResult.status]} encountered while compiling the code.\n\n` + message).trim()
+      message: `A ${SandboxStatus[sandboxResult.status]} encountered while compiling the code.\n\n${message}`.trim()
     };
   }
 }

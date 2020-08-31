@@ -1,8 +1,10 @@
+import winston from "winston";
+
 import { Task } from "@/task";
 import { ensureFiles } from "@/file";
-import winston = require("winston");
 
 import { ConfigurationError, CanceledError } from "@/error";
+
 import * as Traditional from "./traditional";
 import * as Interaction from "./interaction";
 
@@ -34,6 +36,7 @@ export enum SubmissionProgressType {
 export enum SubmissionStatus {
   Pending = "Pending",
 
+  // eslint-disable-next-line no-shadow
   ConfigurationError = "ConfigurationError",
   SystemError = "SystemError",
   Canceled = "Canceled",
@@ -115,13 +118,20 @@ const problemTypeHandlers: Record<ProblemType, SubmissionHandler<unknown, unknow
   [ProblemType.INTERACTION]: Interaction
 };
 
-function getSubtaskCount(judgeInfo: unknown) {
-  if (judgeInfo["subtasks"]) return judgeInfo["subtasks"].length;
+// Common problem types' judge info has a "subtasks" array below.
+interface JudgeInfoCommon {
+  subtasks?: {
+    testcases?: unknown[];
+  }[];
+}
+
+function getSubtaskCount(judgeInfo: JudgeInfoCommon) {
+  if (judgeInfo.subtasks) return judgeInfo.subtasks.length;
   return 1; // Non-common type
 }
 
-function getTestcaseCountOfSubtask(judgeInfo: unknown, subtaskIndex: number) {
-  if (judgeInfo["subtasks"]) return judgeInfo["subtasks"][subtaskIndex]["testcases"].length;
+function getTestcaseCountOfSubtask(judgeInfo: JudgeInfoCommon, subtaskIndex: number) {
+  if (judgeInfo.subtasks) return judgeInfo.subtasks[subtaskIndex].testcases.length;
   return 1; // Non-common type
 }
 
@@ -146,7 +156,7 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
       else throw e;
     }
 
-    const judgeInfo = task.extraInfo.judgeInfo;
+    const { judgeInfo } = task.extraInfo;
 
     const progress: SubmissionProgress<unknown> = {
       progressType: null

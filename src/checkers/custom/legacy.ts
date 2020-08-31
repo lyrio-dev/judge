@@ -1,13 +1,24 @@
+import fs from "fs-extra";
+
 import { v4 as uuid } from "uuid";
 import { SandboxStatus } from "simple-sandbox";
-import fs = require("fs-extra");
 
-import { CustomChecker } from ".";
 import { joinPath } from "@/sandbox";
+
 import { readFileLimited, readFileOmitted } from "@/utils";
 
+import { CustomChecker } from ".";
+
 export const checker: CustomChecker = {
-  async runChecker(checker, inputFile, outputFile, answerFile, code, workingDirectory, runSandboxForCustomChecker) {
+  async runChecker(
+    checkerConfig,
+    inputFile,
+    outputFile,
+    answerFile,
+    code,
+    workingDirectory,
+    runSandboxForCustomChecker
+  ) {
     const stdoutFile = joinPath(workingDirectory, uuid());
     const stderrFile = joinPath(workingDirectory, uuid());
 
@@ -28,9 +39,8 @@ export const checker: CustomChecker = {
     const scoreText = await readFileLimited(stdoutFile.outside, SCORE_LENGTH_LIMIT);
     if (!scoreText) return "Legacy checker returned empty score";
 
-    const score = parseInt(scoreText);
-    if (!(score >= 0 && score <= 100))
-      return `Legacy checker returned an invalid score: ${scoreText ? scoreText : "(empty)"}`;
+    const score = parseInt(scoreText, 10);
+    if (!(score >= 0 && score <= 100)) return `Legacy checker returned an invalid score: ${scoreText || "(empty)"}`;
 
     const MESSAGE_LENGTH_LIMIT = 256;
     const message = await readFileOmitted(stderrFile.outside, MESSAGE_LENGTH_LIMIT);
