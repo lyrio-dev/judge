@@ -1,6 +1,7 @@
-import posix = require("posix");
-import fs = require("fs-extra");
-import klaw = require("klaw");
+import fs from "fs-extra";
+
+import posix from "posix";
+import klaw from "klaw";
 
 import config from "./config";
 
@@ -12,7 +13,7 @@ export async function setDirectoryPermission(dirName: string, writeAccess: boole
       .on("data", item => {
         operations.push(
           (async () => {
-            const path = item.path;
+            const { path } = item;
             await fs.chmod(path, 0o755);
             if (writeAccess) {
               await fs.chown(path, user.uid, user.gid);
@@ -47,13 +48,13 @@ export async function readFileLimited(filePath: string, lengthLimit: number): Pr
     file = await fs.open(filePath, "r");
     const actualSize = (await fs.stat(filePath)).size;
     const buf = Buffer.allocUnsafe(Math.min(actualSize, lengthLimit));
-    const bytesRead = (await fs.read(file, buf, 0, buf.length, 0)).bytesRead;
-    let ret = buf.toString("utf8", 0, bytesRead);
+    const { bytesRead } = await fs.read(file, buf, 0, buf.length, 0);
+    const ret = buf.toString("utf8", 0, bytesRead);
     return ret;
   } catch (e) {
     return "";
   } finally {
-    if (file != -1) {
+    if (file !== -1) {
       await fs.close(file);
     }
   }
@@ -69,17 +70,17 @@ export async function readFileOmitted(filePath: string, lengthLimit: number): Pr
     file = await fs.open(filePath, "r");
     const actualSize = (await fs.stat(filePath)).size;
     const buf = Buffer.allocUnsafe(Math.min(actualSize, lengthLimit));
-    const bytesRead = (await fs.read(file, buf, 0, buf.length, 0)).bytesRead;
+    const { bytesRead } = await fs.read(file, buf, 0, buf.length, 0);
     let ret = buf.toString("utf8", 0, bytesRead);
     if (bytesRead < actualSize) {
       const omitted = actualSize - bytesRead;
-      ret += `\n<${omitted} byte${omitted != 1 ? "s" : ""} omitted>`;
+      ret += `\n<${omitted} byte${omitted !== 1 ? "s" : ""} omitted>`;
     }
     return ret;
   } catch (e) {
     return "";
   } finally {
-    if (file != -1) {
+    if (file !== -1) {
       await fs.close(file);
     }
   }
@@ -89,5 +90,5 @@ export function stringToOmited(str: string, lengthLimit: number) {
   if (str.length <= lengthLimit) return str;
 
   const omitted = str.length - lengthLimit;
-  return str.substr(0, lengthLimit) + `\n<${omitted} byte${omitted != 1 ? "s" : ""} omitted>`;
+  return `${str.substr(0, lengthLimit)}\n<${omitted} byte${omitted !== 1 ? "s" : ""} omitted>`;
 }

@@ -1,3 +1,9 @@
+import { execFileSync } from "child_process";
+import { resolve } from "path";
+import os from "os";
+import fs from "fs-extra";
+
+import { plainToClass, Type } from "class-transformer";
 import {
   validateSync,
   IsString,
@@ -11,19 +17,14 @@ import {
   IsOptional,
   IsNumber
 } from "class-validator";
-import { plainToClass, Type } from "class-transformer";
-import { execFileSync } from "child_process";
-import { resolve } from "path";
-import os = require("os");
-import fs = require("fs-extra");
-import winston = require("winston");
-import yaml = require("js-yaml");
+import winston from "winston";
+import yaml from "js-yaml";
 
 import { ensureDirectoryEmptySync } from "./utils";
 
 winston.add(
   new winston.transports.Console({
-    level: process.env["SYZOJ_NG_JUDGE_LOG_LEVEL"] || "info",
+    level: process.env.SYZOJ_NG_JUDGE_LOG_LEVEL || "info",
     format: winston.format.combine(winston.format.cli())
   })
 );
@@ -106,7 +107,7 @@ export class Config {
   limit: LimitConfig;
 }
 
-const filePath = process.env["SYZOJ_NG_JUDGE_CONFIG_FILE"];
+const filePath = process.env.SYZOJ_NG_JUDGE_CONFIG_FILE;
 if (!filePath) {
   winston.error("Please specify configuration file with environment variable SYZOJ_NG_JUDGE_CONFIG_FILE");
   process.exit(1);
@@ -116,7 +117,7 @@ const parsedConfig = yaml.safeLoad(fs.readFileSync(filePath).toString("utf-8"));
 const config = plainToClass(Config, parsedConfig);
 const errors = validateSync(config);
 if (errors.length > 0) {
-  winston.error("Couldn't parse config file: " + JSON.stringify(errors, null, 2));
+  winston.error(`Couldn't parse config file: ${JSON.stringify(errors, null, 2)}`);
   process.exit(1);
 }
 

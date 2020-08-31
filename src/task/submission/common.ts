@@ -1,5 +1,6 @@
+import toposort from "toposort";
+
 import { SubmissionTask, ProblemSample, SubmissionStatus } from ".";
-import toposort = require("toposort");
 
 interface TestcaseConfigCommon {
   timeLimit?: number;
@@ -66,9 +67,9 @@ export async function runCommonTask<
     compileResults: CompileResults
   ) => Promise<TestcaseResult>;
 }) {
-  const judgeInfo = task.extraInfo.judgeInfo;
+  const { judgeInfo } = task.extraInfo;
 
-  const samples = task.extraInfo.samples;
+  const { samples } = task.extraInfo;
 
   const sumSpecfiedPercentagePointsForSubtasks = judgeInfo.subtasks
     .map(testcase => testcase.points)
@@ -83,8 +84,11 @@ export async function runCommonTask<
     subtask.points != null ? subtask.points : defaultPercentagePointsForSubtasks
   );
 
-  const runSamples =
-    judgeInfo.runSamples && task.extraInfo.samples && !task.extraInfo.submissionContent.skipSamples ? true : false;
+  const runSamples = !!(
+    judgeInfo.runSamples &&
+    task.extraInfo.samples &&
+    !task.extraInfo.submissionContent.skipSamples
+  );
   task.reportProgress.startedRunning(runSamples && samples.length, subtaskFullScores);
 
   let firstNonAcceptedStatus: string = null;
@@ -92,13 +96,13 @@ export async function runCommonTask<
   // Run samples first
   let samplesFailed = false;
   if (runSamples) {
-    for (const i in samples) {
+    for (const i of samples.keys()) {
       if (samplesFailed) {
-        task.reportProgress.sampleTestcaseFinished(Number(i), samples[i], null);
+        task.reportProgress.sampleTestcaseFinished(i, samples[i], null);
         continue;
       }
 
-      const result = await onTestcase(task, judgeInfo, Number(i), samples[i], null, null, null, compileResults);
+      const result = await onTestcase(task, judgeInfo, i, samples[i], null, null, null, compileResults);
 
       if (result.status !== "Accepted") {
         samplesFailed = true;
@@ -121,8 +125,8 @@ export async function runCommonTask<
     ) {
       // Skip
       task.reportProgress.subtaskScoreUpdated(subtaskIndex, 0);
-      for (const i in subtask.testcases) {
-        task.reportProgress.testcaseFinished(subtaskIndex, Number(i), null);
+      for (const i of subtask.testcases.keys()) {
+        task.reportProgress.testcaseFinished(subtaskIndex, i, null);
       }
       continue;
     }
@@ -158,22 +162,13 @@ export async function runCommonTask<
       );
     } else {
       results = [];
-      for (const i in normalizedTestcases) {
+      for (const i of normalizedTestcases.keys()) {
         const testcase = normalizedTestcases[i];
 
         if (Math.round(subtaskScore) === 0) {
-          task.reportProgress.testcaseFinished(subtaskIndex, Number(i), null);
+          task.reportProgress.testcaseFinished(subtaskIndex, i, null);
         } else {
-          const result = await onTestcase(
-            task,
-            judgeInfo,
-            null,
-            null,
-            subtaskIndex,
-            Number(i),
-            testcase,
-            compileResults
-          );
+          const result = await onTestcase(task, judgeInfo, null, null, subtaskIndex, i, testcase, compileResults);
           if (subtask.scoringType === "GroupMin") subtaskScore = Math.min(subtaskScore, result.score);
           else subtaskScore = (subtaskScore * result.score) / 100;
           task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
@@ -184,7 +179,7 @@ export async function runCommonTask<
 
     if (firstNonAcceptedStatus === null) {
       for (const result of results) {
-        if (result.status != "Accepted") {
+        if (result.status !== "Accepted") {
           firstNonAcceptedStatus = result.status;
           break;
         }
@@ -215,6 +210,7 @@ interface JudgeInfoWithSubtasks {
   }[];
 }
 
+/* eslint-disable no-throw-literal */
 export function validateJudgeInfoSubtasks(
   judgeInfo: JudgeInfoWithSubtasks,
   testData: Record<string, string>,
@@ -236,11 +232,13 @@ export function validateJudgeInfoSubtasks(
     });
   });
 }
+/* eslint-enable no-throw-literal */
 
 interface JudgeInfoWithExtraSourceFiles {
   extraSourceFiles?: Partial<Record<string, Record<string, string>>>;
 }
 
+/* eslint-disable no-throw-literal */
 export function validateJudgeInfoExtraSourceFiles(
   judgeInfo: JudgeInfoWithExtraSourceFiles,
   testData: Record<string, string>
@@ -254,6 +252,7 @@ export function validateJudgeInfoExtraSourceFiles(
     });
   });
 }
+/* eslint-enable no-throw-literal */
 
 export function getExtraSourceFiles(
   judgeInfo: JudgeInfoWithExtraSourceFiles,

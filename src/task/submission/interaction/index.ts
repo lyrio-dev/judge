@@ -1,11 +1,12 @@
-import fs = require("fs-extra");
+import fs from "fs-extra";
+
 import { v4 as uuid } from "uuid";
-import winston = require("winston");
+import winston from "winston";
 import { SandboxStatus } from "simple-sandbox";
 
 import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
-import { JudgeInfoInteraction, TestcaseConfig } from "./judgeInfo";
+
 import { runTaskQueued } from "@/taskQueue";
 import { startSandbox, joinPath, MappedPath, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
@@ -13,9 +14,13 @@ import config from "@/config";
 import { readFileOmitted, stringToOmited } from "@/utils";
 import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
-import { runCommonTask, getExtraSourceFiles } from "../common";
+
 import { createPipe, createSharedMemory } from "@/posixUtils";
 import { parseTestlibMessage } from "@/checkers";
+
+import { JudgeInfoInteraction, TestcaseConfig } from "./judgeInfo";
+
+import { runCommonTask, getExtraSourceFiles } from "../common";
 
 export * from "./judgeInfo";
 
@@ -88,8 +93,8 @@ async function runTestcase(
 
     const result: TestcaseResultInteraction = {
       testcaseInfo: {
-        timeLimit: timeLimit,
-        memoryLimit: memoryLimit,
+        timeLimit,
+        memoryLimit,
         inputFile: isSample ? null : testcase.inputFile
       },
       status: null,
@@ -222,9 +227,9 @@ async function runTestcase(
       result.status = TestcaseStatusInteraction.MemoryLimitExceeded;
     else if (userSandboxResult.status === SandboxStatus.RuntimeError) {
       result.status = TestcaseStatusInteraction.RuntimeError;
-      result.systemMessage = "Exit code: " + userSandboxResult.code;
+      result.systemMessage = `Exit code: ${userSandboxResult.code}`;
     } else if (userSandboxResult.status === SandboxStatus.Unknown)
-      throw new Error("Corrupt sandbox result: " + JSON.stringify(userSandboxResult));
+      throw new Error(`Corrupt sandbox result: ${JSON.stringify(userSandboxResult)}`);
 
     result.input = isSample
       ? stringToOmited(sample.inputData, config.limit.dataDisplay)
@@ -272,7 +277,7 @@ async function runTestcase(
 export async function runTask(
   task: SubmissionTask<JudgeInfoInteraction, SubmissionContentInteraction, TestcaseResultInteraction>
 ) {
-  const judgeInfo = task.extraInfo.judgeInfo;
+  const { judgeInfo } = task.extraInfo;
 
   task.reportProgress.compiling();
 

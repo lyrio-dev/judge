@@ -36,17 +36,21 @@ export interface LanguageConfig<T> {
   ) => RunParameters;
 }
 
+/* eslint-disable import/no-dynamic-require */
+/* eslint-disable @typescript-eslint/no-var-requires */
 const langauges: Record<string, LanguageConfig<unknown>> = Object.fromEntries(
   (["cpp"].map(name => require(`./${name}`).languageConfig) as LanguageConfig<unknown>[]).map(language => [
     language.name,
     language
   ])
 );
+/* eslint-enable import/no-dynamic-require */
+/* eslint-enable @typescript-eslint/no-var-requires */
 
 export default function getLanguage(language: string) {
   const languageConfig = langauges[language];
   if (!languageConfig) {
-    throw new Error("Unsupported code language: " + language);
+    throw new Error(`Unsupported code language: ${language}`);
   }
   return languageConfig;
 }

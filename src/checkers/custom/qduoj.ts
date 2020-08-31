@@ -1,8 +1,9 @@
 import { SandboxStatus } from "simple-sandbox";
 
-import { CustomChecker } from ".";
 import { joinPath } from "@/sandbox";
 import { readFileOmitted } from "@/utils";
+
+import { CustomChecker } from ".";
 
 enum QduOjCheckerReturnCode {
   AC = 0,
@@ -11,7 +12,15 @@ enum QduOjCheckerReturnCode {
 }
 
 export const checker: CustomChecker = {
-  async runChecker(checker, inputFile, outputFile, answerFile, code, workingDirectory, runSandboxForCustomChecker) {
+  async runChecker(
+    checkerConfig,
+    inputFile,
+    outputFile,
+    answerFile,
+    code,
+    workingDirectory,
+    runSandboxForCustomChecker
+  ) {
     const messageFile = joinPath(workingDirectory, "message.txt");
 
     const sandboxResult = await runSandboxForCustomChecker(inputFile.inside, null, messageFile.inside, [
@@ -29,7 +38,7 @@ export const checker: CustomChecker = {
     if (!(sandboxResult.code in QduOjCheckerReturnCode)) {
       return `QDUOJ checker exited with an unrecognized return code: ${sandboxResult.code}.\n${message}`;
     } else if (sandboxResult.code === QduOjCheckerReturnCode.ERROR) {
-      return `QDUOJ checker exited with error: ${message ? message : "(empty)"}`;
+      return `QDUOJ checker exited with error: ${message || "(empty)"}`;
     }
 
     return {

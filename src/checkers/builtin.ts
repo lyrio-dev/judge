@@ -1,5 +1,6 @@
 import { promisify } from "util";
-import bindings = require("bindings");
+
+import bindings from "bindings";
 
 import { Checker, CheckerResult, parseTestlibMessage } from ".";
 

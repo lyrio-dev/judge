@@ -1,11 +1,11 @@
 import { SandboxResult } from "simple-sandbox";
 
-import { CheckerResult, CheckerTypeCustom } from "..";
 import { MappedPath, runSandbox, SANDBOX_INSIDE_PATH_BINARY } from "@/sandbox";
 import { CompileResultSuccess } from "@/compile";
 import getLanguage from "@/languages";
-import config from "@/config";
 import { ConfigurationError } from "@/error";
+
+import { CheckerResult, CheckerTypeCustom } from "..";
 
 export interface CustomChecker {
   /**
@@ -30,6 +30,7 @@ export interface CustomChecker {
   ): Promise<CheckerResult | string>;
 }
 
+/* eslint-disable @typescript-eslint/no-var-requires */
 const customCheckerInterfaces: Record<string, CustomChecker> = {
   testlib: require("./testlib").checker,
   legacy: require("./legacy").checker,
@@ -38,6 +39,7 @@ const customCheckerInterfaces: Record<string, CustomChecker> = {
   qduoj: require("./qduoj").checker,
   domjudge: require("./domjudge").checker
 };
+/* eslint-enable @typescript-eslint/no-var-requires */
 
 /**
  * This is called BEFORE compiling the checker to detect some problems that will cause the
@@ -65,7 +67,7 @@ export async function runCustomChecker(
   workingDirectory: MappedPath,
   tempDirectory: string
 ) {
-  return customCheckerInterfaces[checker.interface].runChecker(
+  return await customCheckerInterfaces[checker.interface].runChecker(
     checker,
     inputFile,
     outputFile,

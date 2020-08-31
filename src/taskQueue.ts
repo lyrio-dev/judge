@@ -1,4 +1,4 @@
-import Queue = require("promise-queue");
+import Queue from "promise-queue";
 
 import config from "./config";
 import { ensureDirectoryEmpty } from "./utils";
@@ -17,7 +17,7 @@ const queue = new Queue(Math.min(availableWorkingDirectories.length, config.maxC
  * there're exceptions.
  */
 export async function runTaskQueued<T>(task: (taskWorkingDirectory: string, disposer?: Disposer) => Promise<T>) {
-  return queue.add(async () => {
+  return await queue.add(async () => {
     const taskWorkingDirectory = availableWorkingDirectories.pop();
     const disposer = new Disposer();
     try {

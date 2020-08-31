@@ -50,7 +50,7 @@ export interface CheckerResult {
 }
 
 export function parseTestlibMessage(message: string): CheckerResult | string {
-  const friendlyMessage = message ? message : "(empty)";
+  const friendlyMessage = message || "(empty)";
 
   if (message.startsWith("ok")) {
     return {
@@ -65,7 +65,7 @@ export function parseTestlibMessage(message: string): CheckerResult | string {
   } else if (message.startsWith("points")) {
     const match = message.match(/^points (\d+)/);
     if (!match) return `Couldn't parse testlib's message: ${friendlyMessage}`;
-    const score = parseInt(match[1]);
+    const score = parseInt(match[1], 10);
     if (!(score >= 0 && score <= 100))
       return `Got invalid score ${match[1]} from testlib's message: ${friendlyMessage}`;
     return {
@@ -75,7 +75,7 @@ export function parseTestlibMessage(message: string): CheckerResult | string {
   } else if (message.startsWith("partially correct")) {
     const match = message.match(/^partially correct \((\d+)\)/);
     if (!match) return `Couldn't parse testlib's message: ${friendlyMessage}`;
-    const score = parseInt(match[1]);
+    const score = parseInt(match[1], 10);
     if (!(score >= 0 && score <= 200))
       return `Got invalid score ${match[1]} from testlib's message: ${friendlyMessage}`;
     return {

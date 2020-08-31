@@ -9,6 +9,7 @@ interface LanguageOptionsCpp {
 
 export const languageConfig: LanguageConfig<LanguageOptionsCpp> = {
   name: "cpp",
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getMetaOptions: languageOptions => ({
     sourceFilename: "main.cpp",
     binarySizeLimit: 5 * 1024 * 1024 // 5 MiB, enough unless someone initlizes globals badly
@@ -45,7 +46,7 @@ export const languageConfig: LanguageConfig<LanguageOptionsCpp> = {
     parameters
   ) => ({
     executable: `${binaryDirectoryInside}/a.out`,
-    parameters: parameters,
+    parameters,
     process: 1,
     stdin: stdinFile,
     stdout: stdoutFile,

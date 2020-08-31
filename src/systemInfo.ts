@@ -1,5 +1,6 @@
-import systeminformation = require("systeminformation");
-import os = require("os");
+import os from "os";
+
+import systeminformation from "systeminformation";
 
 export interface SystemInfo {
   // e.g. Ubuntu 18.04.2 LTS
@@ -59,24 +60,25 @@ export default async function getSystemInfo(): Promise<SystemInfo> {
   const memory =
     memLayout.reduce((max, val) => (max.size > val.size ? max : val), memLayout[0]) || ({} as typeof memLayout[0]);
 
+  // eslint-disable-next-line no-return-assign
   return (cachedResult = {
-    os: osInfo.distro + (osInfo.release === "unknown" ? "" : " " + osInfo.release),
-    kernel: os.type().split("_").join(" ") + " " + os.release(),
+    os: osInfo.distro + (osInfo.release === "unknown" ? "" : ` ${osInfo.release}`),
+    kernel: `${os.type().split("_").join(" ")} ${os.release()}`,
     arch: osInfo.arch,
     cpu: {
-      model: [cpu.manufacturer, cpu.brand, "@", cpu.physicalCores && cpu.physicalCores + "x", cpu.speed + "GHz"]
+      model: [cpu.manufacturer, cpu.brand, "@", cpu.physicalCores && `${cpu.physicalCores}x`, `${cpu.speed}GHz`]
         .filter(x => x)
         .join(" "),
       flags: cpuFlags,
       cache: Object.fromEntries(
         Object.entries(cpu.cache)
-          .filter(([cache, size]) => size)
+          .filter(([, size]) => size)
           .map(([cache, size]) => [cache.replace("l", "L"), size])
       )
     },
     memory: {
       size: mem.total / 1024,
-      description: [memory.formFactor, memory.type, memory.clockSpeed && memory.clockSpeed + "MHz"]
+      description: [memory.formFactor, memory.type, memory.clockSpeed && `${memory.clockSpeed}MHz`]
         .filter(x => x)
         .join(" ")
     },

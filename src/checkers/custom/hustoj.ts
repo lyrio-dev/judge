@@ -3,7 +3,15 @@ import { SandboxStatus } from "simple-sandbox";
 import { CustomChecker } from ".";
 
 export const checker: CustomChecker = {
-  async runChecker(checker, inputFile, outputFile, answerFile, code, workingDirectory, runSandboxForCustomChecker) {
+  async runChecker(
+    checkerConfig,
+    inputFile,
+    outputFile,
+    answerFile,
+    code,
+    workingDirectory,
+    runSandboxForCustomChecker
+  ) {
     const sandboxResult = await runSandboxForCustomChecker(null, null, null, [
       inputFile.inside,
       answerFile.inside,

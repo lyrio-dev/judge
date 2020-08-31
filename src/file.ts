@@ -1,8 +1,9 @@
-import fs = require("fs-extra");
+import * as fs from "fs-extra";
 import { join } from "path";
+
 import axios from "axios";
-import Queue = require("promise-queue");
-import winston = require("winston");
+import Queue from "promise-queue";
+import winston from "winston";
 
 import config from "./config";
 import rpc from "./rpc";
@@ -50,7 +51,7 @@ export async function ensureFiles(fileUuids: string[]) {
   winston.verbose(`ensureFiles: ${fileUuids.length - nonExists.length} files already exists`);
   winston.verbose(`ensureFiles: ${nonExists.length} files to download`);
 
-  if (nonExists.length === 0) return;
+  if (nonExists.length === 0) return null;
 
   const alreadyDownloading: Promise<void>[] = nonExists.map(fileUuid => downloadingFiles.get(fileUuid)).filter(x => x);
   const notDownloading: string[] = nonExists.filter(fileUuid => !downloadingFiles.has(fileUuid));
