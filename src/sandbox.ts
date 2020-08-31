@@ -178,6 +178,6 @@ export async function runSandbox({
   extraMounts: SandboxMountDirectory[];
   preservedFileDescriptors?: FileDescriptor[];
 }) {
-  const sandbox = await startSandbox({ taskId, parameters, tempDirectory, extraMounts });
+  const sandbox = await startSandbox({ taskId, parameters, tempDirectory, extraMounts, preservedFileDescriptors });
   return await sandbox.waitForStop();
 }
