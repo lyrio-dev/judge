@@ -18,7 +18,7 @@ jobs:
       with:
         node-version: 14.x
     - name: Install build dependencies
-      run: apt-get update && apt-get install -y install libfmt-dev
+      run: apt-get update && apt-get install -y libfmt-dev
     - name: Install
       run: CXX=clang++-9 yarn
     - name: Build
