@@ -33,6 +33,7 @@
     "posix": "^4.2.0",
     "prettier": "^2.0.5",
     "promise-queue": "^2.2.5",
+    "reflect-metadata": "^0.1.13",
     "simple-sandbox": "^0.3.11",
     "socket.io-client": "^2.3.0",
     "systeminformation": "^4.26.9",
@@ -61,7 +62,6 @@
     "eslint-config-airbnb-base": "^14.2.0",
     "eslint-import-resolver-typescript": "^2.2.1",
     "eslint-plugin-import": "^2.22.0",
-    "reflect-metadata": "^0.1.13",
     "ts-node": "^8.10.2",
     "tsconfig-paths": "^3.9.0",
     "typescript": "^3.9.5"
