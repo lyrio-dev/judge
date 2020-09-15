@@ -231,12 +231,12 @@ async function doCompile(
       if (binaryDirectorySize > binarySizeLimit) {
         return {
           success: false,
-          message: `The source code compiled to ${binaryDirectorySize} bytes, exceeded the size limit.\n\n${message}`.trim()
+          message: `The source code compiled to ${binaryDirectorySize} bytes, exceeding the size limit.\n\n${message}`.trim()
         };
       } else if (binaryDirectorySize > config.binaryCacheMaxSize) {
         return {
           success: false,
-          message: `The source code compiled to ${binaryDirectorySize} bytes, exceeded the limit of cache storage.\n\n${message}`.trim()
+          message: `The source code compiled to ${binaryDirectorySize} bytes, exceeding the limit of cache storage.\n\n${message}`.trim()
         };
       } else {
         // We must done copying it to the cache before reaching the "finally" block in this function
