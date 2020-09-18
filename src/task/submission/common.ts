@@ -48,14 +48,14 @@ export async function runCommonTask<
   TestcaseConfig extends TestcaseConfigCommon,
   SubmissionContent extends SubmissionContentCommon,
   TestcaseResult extends TestcaseResultCommon,
-  CompileResults
+  ExtraParameters
 >({
   task,
-  compileResults,
+  extraParameters,
   onTestcase
 }: {
   task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>;
-  compileResults: CompileResults;
+  extraParameters: ExtraParameters;
   onTestcase: (
     task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>,
     judgeInfo: JudgeInfo,
@@ -64,7 +64,7 @@ export async function runCommonTask<
     subtaskIndex: number,
     testcaseIndex: number,
     testcase: TestcaseConfig,
-    compileResults: CompileResults
+    extraParameters: ExtraParameters
   ) => Promise<TestcaseResult>;
 }) {
   const { judgeInfo } = task.extraInfo;
@@ -102,7 +102,7 @@ export async function runCommonTask<
         continue;
       }
 
-      const result = await onTestcase(task, judgeInfo, i, samples[i], null, null, null, compileResults);
+      const result = await onTestcase(task, judgeInfo, i, samples[i], null, null, null, extraParameters);
 
       if (result.status !== "Accepted") {
         samplesFailed = true;
@@ -154,7 +154,7 @@ export async function runCommonTask<
     if (subtask.scoringType === "Sum") {
       results = await Promise.all(
         normalizedTestcases.map(async (testcase, i) => {
-          const result = await onTestcase(task, judgeInfo, null, null, subtaskIndex, i, testcase, compileResults);
+          const result = await onTestcase(task, judgeInfo, null, null, subtaskIndex, i, testcase, extraParameters);
           subtaskScore += (result.score * normalizedTestcases[i].points) / 100;
           task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
           return result;
@@ -168,7 +168,7 @@ export async function runCommonTask<
         if (Math.round(subtaskScore) === 0) {
           task.reportProgress.testcaseFinished(subtaskIndex, i, null);
         } else {
-          const result = await onTestcase(task, judgeInfo, null, null, subtaskIndex, i, testcase, compileResults);
+          const result = await onTestcase(task, judgeInfo, null, null, subtaskIndex, i, testcase, extraParameters);
           if (subtask.scoringType === "GroupMin") subtaskScore = Math.min(subtaskScore, result.score);
           else subtaskScore = (subtaskScore * result.score) / 100;
           task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
@@ -214,7 +214,8 @@ interface JudgeInfoWithSubtasks {
 export function validateJudgeInfoSubtasks(
   judgeInfo: JudgeInfoWithSubtasks,
   testData: Record<string, string>,
-  enableOutputFile: boolean = true
+  enableInputFile: boolean | "optional" = true,
+  enableOutputFile: boolean | "optional" = true
 ) {
   if (
     judgeInfo.subtasks.length === 0 ||
@@ -225,9 +226,9 @@ export function validateJudgeInfoSubtasks(
     if (subtask.testcases.length === 0) throw `Subtask ${i + 1} has no testcases.`;
 
     subtask.testcases.forEach(({ inputFile, outputFile }, j) => {
-      if (!(inputFile in testData))
+      if (enableInputFile && !(!inputFile && enableInputFile === "optional") && !(inputFile in testData))
         throw `Input file ${inputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
-      if (enableOutputFile && !(outputFile in testData))
+      if (enableOutputFile && !(!outputFile && enableOutputFile === "optional") && !(outputFile in testData))
         throw `Output file ${outputFile} referenced by subtask ${i + 1}'s testcase ${j + 1} doesn't exist.`;
     });
   });

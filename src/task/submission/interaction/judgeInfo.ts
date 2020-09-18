@@ -80,7 +80,7 @@ export async function validateJudgeInfo(
 ): Promise<void> {
   const { judgeInfo, testData } = task.extraInfo;
 
-  validateJudgeInfoSubtasks(judgeInfo, testData, false);
+  validateJudgeInfoSubtasks(judgeInfo, testData, true, false);
 
   if (!judgeInfo.interactor) throw `Interactor not configured.`;
   if (!(judgeInfo.interactor.filename in testData)) throw `Interactor ${judgeInfo.interactor.filename} doesn't exist.`;

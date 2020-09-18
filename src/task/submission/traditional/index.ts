@@ -295,7 +295,7 @@ export async function runTask(
   try {
     await runCommonTask({
       task,
-      compileResults: [compileResult, customCheckerCompileResult],
+      extraParameters: [compileResult, customCheckerCompileResult],
       onTestcase: runTestcase
     });
   } finally {

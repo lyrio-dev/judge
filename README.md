@@ -19,7 +19,7 @@ The judge client of next-generation SYZOJ.
 
 These features are on the plan:
 
-* Other types of problem (SubmitAnswer, ...)
+* Other types of problem (Communication, ...)
 * Other forms of task (Hack, CustomTest, ...)
 * Other languages
 
@@ -104,6 +104,9 @@ limit:
   outputSize: 104857600
   // The max bytes of user's output file and testdata to display to the user, the remaining will be omitted
   dataDisplay: 128
+  // The max bytes of user's output file (of a submission to a submit-answer problem) to display to the user,
+  // the remaining will be omitted
+  dataDisplayForSubmitAnswer: 128
   // The max bytes of user's stderr output to display to the user, the remaining will be omitted
   stderrDisplay: 5120
 ```

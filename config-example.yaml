@@ -21,4 +21,5 @@ limit:
   compilerMessage: 524288
   outputSize: 104857600
   dataDisplay: 128
+  dataDisplayForSubmitAnswer: 1024
   stderrDisplay: 5120

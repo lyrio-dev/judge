@@ -26,7 +26,7 @@ export const checker: CustomChecker = {
       fs.rename(inputFile.outside, joinPath(workingDirectory.outside, "input")),
       fs.rename(outputFile.outside, joinPath(workingDirectory.outside, "user_out")),
       fs.rename(answerFile.outside, joinPath(workingDirectory.outside, "answer")),
-      fs.writeFile(joinPath(workingDirectory.outside, "code"), code)
+      fs.writeFile(joinPath(workingDirectory.outside, "code"), code || "")
     ]);
 
     const sandboxResult = await runSandboxForCustomChecker(null, stdoutFile.inside, stderrFile.inside);

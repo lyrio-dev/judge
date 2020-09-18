@@ -2,15 +2,18 @@ import winston from "winston";
 
 import { Task } from "@/task";
 import { ensureFiles } from "@/file";
-
 import { ConfigurationError, CanceledError } from "@/error";
+
+import { SubmissionFile, SubmissionFileInfo } from "./submissionFile";
 
 import * as Traditional from "./traditional";
 import * as Interaction from "./interaction";
+import * as SubmitAnswer from "./submit-answer";
 
 enum ProblemType {
   TRADITIONAL = "TRADITIONAL",
-  INTERACTION = "INTERACTION"
+  INTERACTION = "INTERACTION",
+  SUBMIT_ANSWER = "SUBMIT_ANSWER"
 }
 
 export interface ProblemSample {
@@ -24,6 +27,7 @@ export interface SubmissionExtraInfo<JudgeInfo, SubmissionContent> {
   samples?: ProblemSample[];
   testData: Record<string, string>; // filename -> uuid
   submissionContent: SubmissionContent;
+  file?: SubmissionFileInfo;
 }
 
 export enum SubmissionProgressType {
@@ -103,6 +107,9 @@ export interface SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>
     subtaskScoreUpdated(subtaskIndex: number, newScore: number): void;
     finished(status: SubmissionStatus, score: number): void;
   };
+
+  // The file submitted by the user, will be automatically downloaded, only for some problem types.
+  file?: SubmissionFile;
 }
 
 export interface SubmissionHandler<JudgeInfo, SubmissionContent, TestcaseResult> {
@@ -115,7 +122,8 @@ export interface SubmissionHandler<JudgeInfo, SubmissionContent, TestcaseResult>
 
 const problemTypeHandlers: Record<ProblemType, SubmissionHandler<unknown, unknown, unknown>> = {
   [ProblemType.TRADITIONAL]: Traditional,
-  [ProblemType.INTERACTION]: Interaction
+  [ProblemType.INTERACTION]: Interaction,
+  [ProblemType.SUBMIT_ANSWER]: SubmitAnswer
 };
 
 // Common problem types' judge info has a "subtasks" array below.
@@ -145,8 +153,14 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
       progressType: SubmissionProgressType.Preparing
     });
 
+    // Download testdata files
     const requiredFiles = Object.values(task.extraInfo.testData);
     await ensureFiles(requiredFiles);
+
+    // Downlaod submission file
+    if (task.extraInfo.file) {
+      task.file = new SubmissionFile(task.extraInfo.file);
+    }
 
     const problemTypeHandler = problemTypeHandlers[task.extraInfo.problemType];
     try {
@@ -258,5 +272,8 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
       systemMessage: e.stack
     });
     if (!isConfigurationError) winston.error(`Error on submission task ${task.taskId}, ${e.stack}`);
+  } finally {
+    // Remove downloaded submission file
+    if (task.file) task.file.dispose();
   }
 }

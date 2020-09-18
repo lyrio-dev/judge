@@ -137,6 +137,13 @@
   resolved "https://registry.yarnpkg.com/@types/toposort/-/toposort-2.0.3.tgz#dc490842b77c3e910c8d727ff0bdb2fb124cb41b"
   integrity sha512-jRtyvEu0Na/sy0oIxBW0f6wPQjidgVqlmCTJVHEGTNEUdL1f0YSvdPzHY7nX7MUWAZS6zcAa0KkqofHjy/xDZQ==
 
+"@types/unzipper@^0.10.3":
+  version "0.10.3"
+  resolved "https://registry.yarnpkg.com/@types/unzipper/-/unzipper-0.10.3.tgz#9eea872fb1fa460da76f253878b6275af588f464"
+  integrity sha512-01mQdTLp3/KuBVDhP82FNBf+enzVOjJ9dGsCWa5z8fcYAFVgA9bqIQ2NmsgNFzN/DhD0PUQj4n5p7k6I9mq80g==
+  dependencies:
+    "@types/node" "*"
+
 "@types/uuid@^8.0.0":
   version "8.0.0"
   resolved "https://registry.yarnpkg.com/@types/uuid/-/uuid-8.0.0.tgz#165aae4819ad2174a17476dbe66feebd549556c0"
@@ -1567,7 +1574,7 @@ fs.realpath@^1.0.0:
   resolved "https://registry.yarnpkg.com/fs.realpath/-/fs.realpath-1.0.0.tgz#1504ad2523158caa40db4a2787cb01411994ea4f"
   integrity sha1-FQStJSMVjKpA20onh8sBQRmU6k8=
 
-fstream@~1.0.10:
+fstream@^1.0.12, fstream@~1.0.10:
   version "1.0.12"
   resolved "https://registry.yarnpkg.com/fstream/-/fstream-1.0.12.tgz#4e8ba8ee2d48be4f7d0de505455548eae5932045"
   integrity sha512-WvJ193OHa0GHPEL+AycEJgxvBEwyfRkN1vhjca23OaPVMCaLCXTd5qAu82AjTcgP1UJmytkOKb63Ypde7raDIg==
@@ -1680,7 +1687,7 @@ google-libphonenumber@^3.2.8:
   resolved "https://registry.yarnpkg.com/google-libphonenumber/-/google-libphonenumber-3.2.8.tgz#fb5898cbae18104d456e0fd80df52d860a3eb2b8"
   integrity sha512-iWs1KcxOozmKQbCeGjvU0M7urrkNjBYOSBtb819RjkUNJHJLfn7DADKkKwdJTOMPLcLOE11/4h/FyFwJsTiwLg==
 
-graceful-fs@^4.1.2:
+graceful-fs@^4.1.2, graceful-fs@^4.2.2:
   version "4.2.4"
   resolved "https://registry.yarnpkg.com/graceful-fs/-/graceful-fs-4.2.4.tgz#2256bde14d3632958c465ebc96dc467ca07a29fb"
   integrity sha512-WjKPNJF79dtJAVniUlGGWHYGz2jWxT6VhN/4m1NdkbZ2nOsEF+cI1Edgql5zCRhs/VsQYRvrXctxktVXZUkixw==
@@ -2817,7 +2824,7 @@ read-pkg@^2.0.0:
     normalize-package-data "^2.3.2"
     path-type "^2.0.0"
 
-"readable-stream@^2.0.0 || ^1.1.13", readable-stream@^2.0.2, readable-stream@^2.3.6:
+"readable-stream@^2.0.0 || ^1.1.13", readable-stream@^2.0.2, readable-stream@^2.3.6, readable-stream@~2.3.6:
   version "2.3.7"
   resolved "https://registry.yarnpkg.com/readable-stream/-/readable-stream-2.3.7.tgz#1eca1cf711aef814c04f62252a36a62f6cb23b57"
   integrity sha512-Ebho8K4jIbHAxnuxi7o42OrZgF/ZTNcsZj6nRKyUmkhLFq8CHItp/fy6hQZuZmP/n3yZ9VBUbp4zz/mX8hmYPw==
@@ -3614,6 +3621,22 @@ unset-value@^1.0.0:
   dependencies:
     has-value "^0.3.1"
     isobject "^3.0.0"
+
+unzipper@^0.10.11:
+  version "0.10.11"
+  resolved "https://registry.yarnpkg.com/unzipper/-/unzipper-0.10.11.tgz#0b4991446472cbdb92ee7403909f26c2419c782e"
+  integrity sha512-+BrAq2oFqWod5IESRjL3S8baohbevGcVA+teAIOYWM3pDVdseogqbzhhvvmiyQrUNKFUnDMtELW3X8ykbyDCJw==
+  dependencies:
+    big-integer "^1.6.17"
+    binary "~0.3.0"
+    bluebird "~3.4.1"
+    buffer-indexof-polyfill "~1.0.0"
+    duplexer2 "~0.1.4"
+    fstream "^1.0.12"
+    graceful-fs "^4.2.2"
+    listenercount "~1.0.1"
+    readable-stream "~2.3.6"
+    setimmediate "~1.0.4"
 
 unzipper@^0.8.13:
   version "0.8.14"

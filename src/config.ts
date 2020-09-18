@@ -60,6 +60,10 @@ export class LimitConfig {
 
   @IsNumber()
   @IsPositive()
+  dataDisplayForSubmitAnswer: number;
+
+  @IsNumber()
+  @IsPositive()
   stderrDisplay: number;
 }
 

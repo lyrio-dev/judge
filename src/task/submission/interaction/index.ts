@@ -312,7 +312,7 @@ export async function runTask(
   try {
     await runCommonTask({
       task,
-      compileResults: [compileResult, interactorCompileResult],
+      extraParameters: [compileResult, interactorCompileResult],
       onTestcase: runTestcase
     });
   } finally {
