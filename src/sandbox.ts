@@ -1,4 +1,4 @@
-import * as fs from "fs-extra";
+import fs from "fs";
 
 import { join } from "path";
 
@@ -6,10 +6,11 @@ import * as Sandbox from "simple-sandbox";
 import { v4 as uuid } from "uuid";
 
 import config from "./config";
-import { setDirectoryPermission } from "./utils";
+import { setSandboxUserPermission } from "./utils";
 import rpc from "./rpc";
 import { CanceledError } from "./error";
 import { FileDescriptor } from "./posixUtils";
+import * as fsNative from "./fsNative";
 
 export interface MappedPath {
   outside: string;
@@ -85,7 +86,7 @@ export async function startSandbox({
   if (parameters.executable) executable = parameters.executable;
   else {
     executable = "/tmp/script.sh";
-    await fs.writeFile(join(tempDirectory, "script.sh"), parameters.script, {
+    await fs.promises.writeFile(join(tempDirectory, "script.sh"), parameters.script, {
       mode: 0o755
     });
   }
@@ -102,9 +103,11 @@ export async function startSandbox({
 
   await Promise.all([
     // Create the mount points in the sandbox rootfs
-    await Promise.all(extraMounts.map(mount => fs.ensureDir(join(config.sandbox.rootfs, mount.mappedPath.inside)))),
+    await Promise.all(
+      extraMounts.map(mount => fsNative.ensureDir(join(config.sandbox.rootfs, mount.mappedPath.inside)))
+    ),
     // TODO: Use something like bindfs to set owner for the mount point instead
-    await Promise.all(extraMounts.map(mount => setDirectoryPermission(mount.mappedPath.outside, !mount.readOnly)))
+    await Promise.all(extraMounts.map(mount => setSandboxUserPermission(mount.mappedPath.outside, !mount.readOnly)))
   ]);
 
   if (taskId) rpc.ensureNotCanceled(taskId);

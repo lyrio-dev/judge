@@ -1,4 +1,4 @@
-import fs from "fs-extra";
+import fs from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -9,6 +9,7 @@ import unzipper from "unzipper";
 
 import config from "@/config";
 import { ensureDirectoryEmpty } from "@/utils";
+import * as fsNative from "@/fsNative";
 
 export interface SubmissionFileInfo {
   uuid: string;
@@ -120,7 +121,7 @@ export class SubmissionFile {
     this.disposed = true;
 
     // No need to await
-    fs.remove(this.path);
-    fs.remove(this.unzippedPath);
+    fsNative.remove(this.path);
+    fsNative.remove(this.unzippedPath);
   }
 }

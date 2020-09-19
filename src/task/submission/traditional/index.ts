@@ -1,7 +1,6 @@
-import fs from "fs-extra";
+import fs from "fs";
 
 import { v4 as uuid } from "uuid";
-import du from "du";
 import winston from "winston";
 import { SandboxStatus } from "simple-sandbox";
 
@@ -17,6 +16,7 @@ import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
 import { runBuiltinChecker } from "@/checkers/builtin";
 import { runCustomChecker, validateCustomChecker } from "@/checkers/custom";
+import * as fsNative from "@/fsNative";
 
 import { JudgeInfoTraditional, TestcaseConfig } from "./judgeInfo";
 
@@ -117,13 +117,13 @@ async function runTestcase(
 
     const tempDirectory = joinPath(taskWorkingDirectory, "temp");
 
-    await Promise.all([fs.ensureDir(workingDirectory.outside), fs.ensureDir(tempDirectory)]);
+    await Promise.all([fsNative.ensureDirSync(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
 
     const inputFile = joinPath(workingDirectory, judgeInfo.fileIo ? judgeInfo.fileIo.inputFilename : uuid());
 
-    const writeInputFile = async () => {
-      if (isSample) await fs.writeFile(inputFile.outside, sample.inputData);
-      else await fs.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
+    const writeInputFile = () => {
+      if (isSample) return fs.promises.writeFile(inputFile.outside, sample.inputData);
+      else return fsNative.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
     };
     await writeInputFile();
 
@@ -161,8 +161,8 @@ async function runTestcase(
       ]
     });
 
-    const workingDirectorySize = await du(workingDirectory.outside);
-    const inputFileSize = await du(inputFile.outside);
+    const workingDirectorySize = await fsNative.calcSize(workingDirectory.outside);
+    const inputFileSize = await fsNative.calcSize(inputFile.outside);
     if (workingDirectorySize - inputFileSize > config.limit.outputSize) {
       result.status = TestcaseStatusTraditional.OutputLimitExceeded;
     } else if (sandboxResult.status === SandboxStatus.TimeLimitExceeded) {
@@ -174,7 +174,7 @@ async function runTestcase(
       result.systemMessage = `Exit code: ${sandboxResult.code}`;
     } else if (sandboxResult.status !== SandboxStatus.OK) {
       throw new Error(`Corrupt sandbox result: ${JSON.stringify(sandboxResult)}`);
-    } else if (!(await fs.pathExists(outputFile.outside))) {
+    } else if (!(await fsNative.exists(outputFile.outside))) {
       result.status = TestcaseStatusTraditional.FileError;
     }
 
@@ -196,8 +196,8 @@ async function runTestcase(
 
       const answerFile = joinPath(workingDirectory, uuid());
 
-      if (isSample) await fs.writeFile(answerFile.outside, sample.outputData);
-      else await fs.copy(getFile(task.extraInfo.testData[testcase.outputFile]), answerFile.outside);
+      if (isSample) await fs.promises.writeFile(answerFile.outside, sample.outputData);
+      else await fsNative.copy(getFile(task.extraInfo.testData[testcase.outputFile]), answerFile.outside);
 
       const checkerResult =
         judgeInfo.checker.type === "custom"
@@ -263,7 +263,7 @@ export async function runTask(
 
     const compileResult = await compile({
       language: judgeInfo.checker.language,
-      code: await fs.readFile(getFile(task.extraInfo.testData[judgeInfo.checker.filename]), "utf-8"),
+      code: await fs.promises.readFile(getFile(task.extraInfo.testData[judgeInfo.checker.filename]), "utf-8"),
       languageOptions: judgeInfo.checker.languageOptions
     });
 
@@ -288,7 +288,7 @@ export async function runTask(
 
   if (!(compileResult instanceof CompileResultSuccess)) {
     task.reportProgress.finished(SubmissionStatus.CompilationError, 0);
-    if (customCheckerCompileResult) customCheckerCompileResult.dereference();
+    if (customCheckerCompileResult) await customCheckerCompileResult.dereference();
     return;
   }
 
@@ -299,7 +299,7 @@ export async function runTask(
       onTestcase: runTestcase
     });
   } finally {
-    compileResult.dereference();
-    if (customCheckerCompileResult) customCheckerCompileResult.dereference();
+    await compileResult.dereference();
+    if (customCheckerCompileResult) await customCheckerCompileResult.dereference();
   }
 }

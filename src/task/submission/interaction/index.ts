@@ -1,4 +1,4 @@
-import fs from "fs-extra";
+import fs from "fs";
 
 import { v4 as uuid } from "uuid";
 import winston from "winston";
@@ -17,6 +17,7 @@ import { ConfigurationError } from "@/error";
 
 import { createPipe, createSharedMemory } from "@/posixUtils";
 import { parseTestlibMessage } from "@/checkers";
+import * as fsNative from "@/fsNative";
 
 import { JudgeInfoInteraction, TestcaseConfig } from "./judgeInfo";
 
@@ -116,11 +117,11 @@ async function runTestcase(
 
     const tempDirectory = joinPath(taskWorkingDirectory, "temp");
 
-    await Promise.all([fs.ensureDir(workingDirectory.outside), fs.ensureDir(tempDirectory)]);
+    await Promise.all([fsNative.ensureDir(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
 
     const inputFile = joinPath(workingDirectory, uuid());
-    if (isSample) await fs.writeFile(inputFile.outside, sample.inputData);
-    else await fs.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
+    if (isSample) await fs.promises.writeFile(inputFile.outside, sample.inputData);
+    else await fsNative.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
 
     const userStderrFile = joinPath(workingDirectory, uuid());
     const userLanguageConfig = getLanguage(task.extraInfo.submissionContent.language);
@@ -283,7 +284,7 @@ export async function runTask(
 
   const interactorCompileResult = await compile({
     language: judgeInfo.interactor.language,
-    code: await fs.readFile(getFile(task.extraInfo.testData[judgeInfo.interactor.filename]), "utf-8"),
+    code: await fs.promises.readFile(getFile(task.extraInfo.testData[judgeInfo.interactor.filename]), "utf-8"),
     languageOptions: judgeInfo.interactor.languageOptions
   });
 
@@ -305,7 +306,7 @@ export async function runTask(
 
   if (!(compileResult instanceof CompileResultSuccess)) {
     task.reportProgress.finished(SubmissionStatus.CompilationError, 0);
-    if (interactorCompileResult) interactorCompileResult.dereference();
+    if (interactorCompileResult) await interactorCompileResult.dereference();
     return;
   }
 
@@ -316,7 +317,7 @@ export async function runTask(
       onTestcase: runTestcase
     });
   } finally {
-    compileResult.dereference();
-    if (interactorCompileResult) interactorCompileResult.dereference();
+    await compileResult.dereference();
+    if (interactorCompileResult) await interactorCompileResult.dereference();
   }
 }

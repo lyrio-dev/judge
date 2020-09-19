@@ -1,4 +1,4 @@
-import fs from "fs-extra";
+import fs from "fs";
 
 import { v4 as uuid } from "uuid";
 import { SandboxStatus } from "simple-sandbox";
@@ -23,10 +23,10 @@ export const checker: CustomChecker = {
     const stderrFile = joinPath(workingDirectory, uuid());
 
     await Promise.all([
-      fs.rename(inputFile.outside, joinPath(workingDirectory.outside, "input")),
-      fs.rename(outputFile.outside, joinPath(workingDirectory.outside, "user_out")),
-      fs.rename(answerFile.outside, joinPath(workingDirectory.outside, "answer")),
-      fs.writeFile(joinPath(workingDirectory.outside, "code"), code || "")
+      fs.promises.rename(outputFile.outside, joinPath(workingDirectory.outside, "user_out")),
+      fs.promises.rename(inputFile.outside, joinPath(workingDirectory.outside, "input")),
+      fs.promises.rename(answerFile.outside, joinPath(workingDirectory.outside, "answer")),
+      fs.promises.writeFile(joinPath(workingDirectory.outside, "code"), code || "")
     ]);
 
     const sandboxResult = await runSandboxForCustomChecker(null, stdoutFile.inside, stderrFile.inside);

@@ -68,10 +68,6 @@ rules:
   import/order:
     - error
     - groups: [builtin, external, internal, sibling]
-      pathGroups:
-        # "fs-extra" is replacing "fs" builtin module
-        - pattern: fs-extra
-          group: builtin
       pathGroupsExcludedImportTypes: []
       newlines-between: always-and-inside-groups
 

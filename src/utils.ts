@@ -1,62 +1,42 @@
-import fs from "fs-extra";
-
-import posix from "posix";
-import klaw from "klaw";
+import fs from "fs";
 
 import config from "./config";
+import * as fsNative from "./fsNative";
 
-export async function setDirectoryPermission(dirName: string, writeAccess: boolean): Promise<void> {
-  const user = posix.getpwnam(config.sandbox.user);
-  const operations: Promise<void>[] = [];
-  return await new Promise((res, rej) => {
-    klaw(dirName)
-      .on("data", item => {
-        operations.push(
-          (async () => {
-            const { path } = item;
-            await fs.chmod(path, 0o755);
-            if (writeAccess) {
-              await fs.chown(path, user.uid, user.gid);
-            } else {
-              await fs.chown(path, process.getuid(), process.getgid());
-            }
-          })()
-        );
-      })
-      .on("end", () => {
-        Promise.all(operations).then(() => res(), rej);
-      });
+export async function setSandboxUserPermission(path: string, writeAccess: boolean): Promise<void> {
+  await fsNative.chmodown(path, {
+    mode: 0o755,
+    owner: writeAccess ? config.sandbox.user : 0,
+    group: writeAccess ? true : 0
   });
 }
 
 export async function ensureDirectoryEmpty(path: string): Promise<void> {
-  await fs.ensureDir(path);
-  await fs.emptyDir(path);
+  await fsNative.ensureDir(path);
+  await fsNative.emptyDir(path);
 }
 
 export function ensureDirectoryEmptySync(path: string) {
-  fs.ensureDirSync(path);
-  fs.emptyDirSync(path);
+  fsNative.ensureDirSync(path);
+  fsNative.emptyDirSync(path);
 }
 
 /**
  * Read a file's first at most `lengthLimit` bytes, ignoring the remaining bytes.
  */
 export async function readFileLimited(filePath: string, lengthLimit: number): Promise<string> {
-  let file = -1;
+  let file: fs.promises.FileHandle;
   try {
-    file = await fs.open(filePath, "r");
-    const actualSize = (await fs.stat(filePath)).size;
+    file = await fs.promises.open(filePath, "r");
+    const actualSize = (await file.stat()).size;
     const buf = Buffer.allocUnsafe(Math.min(actualSize, lengthLimit));
-    const { bytesRead } = await fs.read(file, buf, 0, buf.length, 0);
+    const { bytesRead } = await file.read(buf, 0, buf.length, 0);
     const ret = buf.toString("utf8", 0, bytesRead);
     return ret;
   } catch (e) {
     return "";
   } finally {
-    if (file !== -1) {
-      await fs.close(file);
-    }
+    await file.close();
   }
 }
 
@@ -65,12 +45,12 @@ export async function readFileLimited(filePath: string, lengthLimit: number): Pr
  * more bytes remaining.
  */
 export async function readFileOmitted(filePath: string, lengthLimit: number): Promise<string> {
-  let file = -1;
+  let file: fs.promises.FileHandle;
   try {
-    file = await fs.open(filePath, "r");
-    const actualSize = (await fs.stat(filePath)).size;
+    file = await fs.promises.open(filePath, "r");
+    const actualSize = (await file.stat()).size;
     const buf = Buffer.allocUnsafe(Math.min(actualSize, lengthLimit));
-    const { bytesRead } = await fs.read(file, buf, 0, buf.length, 0);
+    const { bytesRead } = await file.read(buf, 0, buf.length, 0);
     let ret = buf.toString("utf8", 0, bytesRead);
     if (bytesRead < actualSize) {
       const omitted = actualSize - bytesRead;
@@ -80,9 +60,7 @@ export async function readFileOmitted(filePath: string, lengthLimit: number): Pr
   } catch (e) {
     return "";
   } finally {
-    if (file !== -1) {
-      await fs.close(file);
-    }
+    await file.close();
   }
 }
 

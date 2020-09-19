@@ -1,7 +1,7 @@
 import { execFileSync } from "child_process";
 import { resolve } from "path";
 import os from "os";
-import fs from "fs-extra";
+import fs from "fs";
 
 import { plainToClass, Type } from "class-transformer";
 import {
@@ -21,6 +21,7 @@ import winston from "winston";
 import yaml from "js-yaml";
 
 import { ensureDirectoryEmptySync } from "./utils";
+import * as fsNative from "./fsNative";
 
 winston.add(
   new winston.transports.Console({
@@ -143,7 +144,7 @@ for (const dir of config.taskWorkingDirectories) {
   checkTaskWorkingDirectory(dir);
 }
 
-fs.ensureDirSync(config.dataStore);
+fsNative.ensureDirSync(config.dataStore);
 ensureDirectoryEmptySync(config.binaryCacheStore);
 
 // Check config (warnings)

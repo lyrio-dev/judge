@@ -1,4 +1,4 @@
-import * as fs from "fs-extra";
+import fs from "fs";
 import { join } from "path";
 
 import axios from "axios";
@@ -7,19 +7,20 @@ import winston from "winston";
 
 import config from "./config";
 import rpc from "./rpc";
+import * as fsNative from "./fsNative";
 
 const downloadingFiles: Map<string, Promise<void>> = new Map();
 const queue = new Queue(config.maxConcurrentDownloads, Infinity);
 
 async function fileExists(fileUuid: string): Promise<boolean> {
-  return await fs.pathExists(join(config.dataStore, fileUuid));
+  return await fsNative.exists(join(config.dataStore, fileUuid));
 }
 
 // TODO: check download speed
 async function downloadFile(url: string, fileUuid: string) {
   winston.info(`Downloading file ${fileUuid} from server`);
   const tempDir = join(config.dataStore, "temp");
-  await fs.ensureDir(tempDir);
+  await fsNative.ensureDir(tempDir);
 
   const tempFilename = join(tempDir, fileUuid);
   const fileStream = fs.createWriteStream(join(tempDir, fileUuid));
@@ -37,16 +38,18 @@ async function downloadFile(url: string, fileUuid: string) {
   });
 
   const persistFilename = join(config.dataStore, fileUuid);
-  await fs.move(tempFilename, persistFilename);
+  await fs.promises.rename(tempFilename, persistFilename);
 }
 
 export async function ensureFiles(fileUuids: string[]) {
   fileUuids = Array.from(new Set(fileUuids));
 
   const nonExists: string[] = [];
-  for (const fileUuid of fileUuids) {
-    if (!(await fileExists(fileUuid))) nonExists.push(fileUuid);
-  }
+  await Promise.all(
+    fileUuids.map(async fileUuid => {
+      if (!(await fileExists(fileUuid))) nonExists.push(fileUuid);
+    })
+  );
 
   winston.verbose(`ensureFiles: ${fileUuids.length - nonExists.length} files already exists`);
   winston.verbose(`ensureFiles: ${nonExists.length} files to download`);

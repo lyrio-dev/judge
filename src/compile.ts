@@ -1,8 +1,7 @@
-import fs from "fs-extra";
+import fs from "fs";
 
 import { SandboxStatus } from "simple-sandbox";
 import objectHash from "object-hash";
-import du from "du";
 import LruCache from "lru-cache";
 import winston from "winston";
 import { v4 as uuid } from "uuid";
@@ -20,6 +19,7 @@ import {
 import config from "./config";
 import { runTaskQueued } from "./taskQueue";
 import { getFile } from "./file";
+import * as fsNative from "./fsNative";
 
 export interface CompileParameters extends ExecuteParameters {
   time: number; // Time limit
@@ -60,18 +60,16 @@ export class CompileResultSuccess implements CompileResult {
     return this;
   }
 
-  public dereference() {
+  public async dereference() {
     if (--this.referenceCount === 0) {
-      fs.remove(this.binaryDirectory).catch(e =>
-        winston.error(`CompileResultSuccess.dereference() failed to remove the directory: ${e}`)
-      );
+      await fsNative.remove(this.binaryDirectory);
     }
   }
 
   async copyTo(newBinaryDirectory: string) {
     this.reference();
-    await fs.copy(this.binaryDirectory, newBinaryDirectory);
-    this.dereference();
+    await fsNative.copy(this.binaryDirectory, newBinaryDirectory);
+    await this.dereference();
     return new CompileResultSuccess(this.message, newBinaryDirectory, this.binaryDirectorySize);
   }
 }
@@ -87,7 +85,10 @@ class CompileResultCache {
     length: result => result.binaryDirectorySize,
     dispose: (taskHash, result) => {
       winston.verbose(`dispose() from compile result cache: ${taskHash}`);
-      setImmediate(() => result.dereference());
+      setImmediate(() => {
+        // It's safe NOT to await it..
+        result.dereference().catch(e => winston.error(`Failed to remove compile result on evicting cache: ${e.stack}`));
+      });
     }
   });
 
@@ -150,7 +151,7 @@ export async function compile(compileTask: CompileTask): Promise<CompileResult> 
           for (const resultConsumer of resultConsumers)
             resultConsumer(compileResult instanceof CompileResultSuccess ? compileResult.reference() : compileResult);
 
-          if (compileResult instanceof CompileResultSuccess) compileResult.dereference();
+          if (compileResult instanceof CompileResultSuccess) await compileResult.dereference();
         }).finally(() => pendingCompileTasks.delete(taskHash))
       })
     );
@@ -193,12 +194,12 @@ async function doCompile(
 
   await Promise.all(
     Object.entries(compileTask.extraSourceFiles || {}).map(([dst, src]) =>
-      fs.copyFile(getFile(src), joinPath(sourceDirectory.outside, dst))
+      fs.promises.copyFile(getFile(src), joinPath(sourceDirectory.outside, dst))
     )
   );
 
   const sourceFile = joinPath(sourceDirectory, sourceFilename);
-  await fs.writeFile(sourceFile.outside, compileTask.code);
+  await fs.promises.writeFile(sourceFile.outside, compileTask.code);
 
   const executeParameters = languageConfig.compile(
     sourceFile.inside,
@@ -223,11 +224,11 @@ async function doCompile(
 
   const messageFile = joinPath(binaryDirectory, executeParameters.messageFile);
   const message = (await readFileOmitted(messageFile.outside, config.limit.compilerMessage)) || "";
-  await fs.remove(messageFile.outside);
+  await fsNative.remove(messageFile.outside);
 
   if (sandboxResult.status === SandboxStatus.OK) {
     if (sandboxResult.code === 0) {
-      const binaryDirectorySize = await du(binaryDirectory.outside);
+      const binaryDirectorySize = await fsNative.calcSize(binaryDirectory.outside);
       if (binaryDirectorySize > binarySizeLimit) {
         return {
           success: false,
@@ -239,7 +240,8 @@ async function doCompile(
           message: `The source code compiled to ${binaryDirectorySize} bytes, exceeding the limit of cache storage.\n\n${message}`.trim()
         };
       } else {
-        // We must done copying it to the cache before reaching the "finally" block in this function
+        // We must done copying it to the cache before returning
+        // Since the initial compile result's directory is NOT preserved after returning to the task queue
         return await compileResultCache.set(
           taskHash,
           new CompileResultSuccess(message, binaryDirectory.outside, binaryDirectorySize)

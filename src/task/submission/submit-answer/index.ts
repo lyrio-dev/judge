@@ -1,4 +1,4 @@
-import fs from "fs-extra";
+import fs from "fs";
 
 import { v4 as uuid } from "uuid";
 import winston from "winston";
@@ -14,6 +14,7 @@ import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
 import { runBuiltinChecker } from "@/checkers/builtin";
 import { runCustomChecker, validateCustomChecker } from "@/checkers/custom";
+import * as fsNative from "@/fsNative";
 
 import { JudgeInfoSubmitAnswer, TestcaseConfig } from "./judgeInfo";
 
@@ -105,20 +106,21 @@ async function runTestcase(
 
       const tempDirectory = joinPath(taskWorkingDirectory, "temp");
 
-      await Promise.all([fs.ensureDir(workingDirectory.outside), fs.ensureDir(tempDirectory)]);
+      await Promise.all([fsNative.ensureDir(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
 
       const inputFile = joinPath(workingDirectory, uuid());
-      if (testcase.inputFile) await fs.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
-      else await fs.ensureFile(inputFile.outside);
+      if (testcase.inputFile)
+        await fsNative.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
+      else await fs.promises.writeFile(inputFile.outside, "");
 
       const answerFile = joinPath(workingDirectory, uuid());
-      await fs.copy(getFile(task.extraInfo.testData[testcase.outputFile]), answerFile.outside);
+      await fsNative.copy(getFile(task.extraInfo.testData[testcase.outputFile]), answerFile.outside);
 
       const outputFile = joinPath(workingDirectory, uuid());
-      await fs.copy(fileUnzipResult.path, outputFile.outside);
+      await fsNative.copy(fileUnzipResult.path, outputFile.outside);
 
       result.userOutput = await readFileOmitted(outputFile.outside, config.limit.dataDisplayForSubmitAnswer);
-      result.userOutputLength = (await fs.stat(outputFile.outside)).size;
+      result.userOutputLength = (await fs.promises.stat(outputFile.outside)).size;
 
       const checkerResult =
         judgeInfo.checker.type === "custom"
@@ -193,7 +195,7 @@ export async function runTask(
 
         const compileResult = await compile({
           language: judgeInfo.checker.language,
-          code: await fs.readFile(getFile(task.extraInfo.testData[judgeInfo.checker.filename]), "utf-8"),
+          code: await fs.promises.readFile(getFile(task.extraInfo.testData[judgeInfo.checker.filename]), "utf-8"),
           languageOptions: judgeInfo.checker.languageOptions
         });
 
@@ -213,6 +215,6 @@ export async function runTask(
       onTestcase: runTestcase
     });
   } finally {
-    if (customCheckerCompileResult) customCheckerCompileResult.dereference();
+    if (customCheckerCompileResult) await customCheckerCompileResult.dereference();
   }
 }
