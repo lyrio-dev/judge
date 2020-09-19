@@ -31,10 +31,10 @@ export interface SubmissionExtraInfo<JudgeInfo, SubmissionContent> {
 }
 
 export enum SubmissionProgressType {
-  Preparing,
-  Compiling,
-  Running,
-  Finished
+  Preparing = "Preparing",
+  Compiling = "Compiling",
+  Running = "Running",
+  Finished = "Finished"
 }
 
 export enum SubmissionStatus {
