@@ -671,7 +671,7 @@ cliui@^3.0.3:
     strip-ansi "^3.0.1"
     wrap-ansi "^2.0.0"
 
-cmake-js@^6.1.0:
+cmake-js@^6.0.0, cmake-js@^6.1.0:
   version "6.1.0"
   resolved "https://registry.yarnpkg.com/cmake-js/-/cmake-js-6.1.0.tgz#bec7381b58d454acee09d4fb0047153a005063a6"
   integrity sha512-utmukLQftpgrCpGRCaHnkv4K27HZNNFqmBl4vnvccy0xp4c1erxjFU/Lq4wn5ngAhFZmpwBPQfoKWKThjSBiwg==
@@ -2408,6 +2408,11 @@ natural-compare@^1.4.0:
   resolved "https://registry.yarnpkg.com/natural-compare/-/natural-compare-1.4.0.tgz#4abebfeed7541f2c27acfb29bdbbd15c8d5ba4f7"
   integrity sha1-Sr6/7tdUHywnrPspvbvRXI1bpPc=
 
+node-addon-api@^2.0.0:
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-2.0.2.tgz#432cfa82962ce494b132e9d72a15b29f71ff5d32"
+  integrity sha512-Ntyt4AIXyaLIuMHF6IOoTakB3K+RWxwtsHNRxllEoA6vPwP9o4866g6YWDLUdnucilZhmkxiHwHr11gAENw+QA==
+
 node-addon-api@^3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/node-addon-api/-/node-addon-api-3.0.0.tgz#812446a1001a54f71663bed188314bba07e09247"
@@ -3029,12 +3034,14 @@ signal-exit@^3.0.2:
   resolved "https://registry.yarnpkg.com/signal-exit/-/signal-exit-3.0.2.tgz#b5fdc08f1287ea1178628e415e25132b73646c6d"
   integrity sha1-tf3AjxKH6hF4Yo5BXiUTK3NkbG0=
 
-simple-sandbox@^0.3.11:
-  version "0.3.11"
-  resolved "https://registry.yarnpkg.com/simple-sandbox/-/simple-sandbox-0.3.11.tgz#f45f586a3e72e8f871697b29765d34572d099878"
-  integrity sha512-x+WZSiEDPMOhduyXC4+9t5W9odou/i9h2kmB66Zcr9YFLFxQI/xMWHYlqnLvGz2i4aL11m/5l9dbBOn3qpD1Yg==
+simple-sandbox@^0.3.13:
+  version "0.3.13"
+  resolved "https://registry.yarnpkg.com/simple-sandbox/-/simple-sandbox-0.3.13.tgz#bb92d5eff2a0885ed441ed8a239d42b29a9b8010"
+  integrity sha512-FazAhJsUmkLZJofNVR5yxB9KBuE1NJtwjrD5aP9EkJqhiWqv/0xnX+HispksHj4Nq8zjoIvVipcX5M7rAjo+xA==
   dependencies:
     bindings "^1.5.0"
+    cmake-js "^6.0.0"
+    node-addon-api "^2.0.0"
     randomstring "^1.1.5"
 
 simple-swizzle@^0.2.2:
