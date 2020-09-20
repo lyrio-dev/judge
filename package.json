@@ -10,7 +10,9 @@
     "install": "cmake-js compile",
     "lint": "eslint src --ext ts --cache",
     "start": "ts-node -r tsconfig-paths/register src/index",
-    "test": "tsc -p ."
+    "test": "tsc -p .",
+    "snyk-protect": "snyk protect",
+    "prepare": "yarn run snyk-protect"
   },
   "config": {
     "commitizen": {
@@ -37,7 +39,8 @@
     "unzipper": "^0.10.11",
     "uuid": "^8.1.0",
     "valid-filename": "^3.1.0",
-    "winston": "^3.2.1"
+    "winston": "^3.2.1",
+    "snyk": "^1.398.1"
   },
   "devDependencies": {
     "@types/js-yaml": "^3.12.5",
@@ -60,5 +63,6 @@
     "ts-node": "^8.10.2",
     "tsconfig-paths": "^3.9.0",
     "typescript": "^3.9.5"
-  }
+  },
+  "snyk": true
 }
