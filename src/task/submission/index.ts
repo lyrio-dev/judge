@@ -321,7 +321,7 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
     task.reportProgressRaw({
       progressType: SubmissionProgressType.Finished,
       status: isConfigurationError ? SubmissionStatus.ConfigurationError : SubmissionStatus.SystemError,
-      systemMessage: e.stack
+      systemMessage: isConfigurationError ? e.message : e.stack
     });
     if (!isConfigurationError) winston.error(`Error on submission task ${task.taskId}, ${e.stack}`);
   } finally {
