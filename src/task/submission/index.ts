@@ -165,7 +165,9 @@ function getTestcaseCountOfSubtask(judgeInfo: JudgeInfoCommon, subtaskIndex: num
   return 1; // Non-common type
 }
 
-export default async function onSubmission(task: SubmissionTask<unknown, unknown, unknown, unknown>): Promise<void> {
+export default async function onSubmission<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters>(
+  task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters>
+): Promise<void> {
   try {
     if (!(task.extraInfo.problemType in ProblemType)) {
       throw new ConfigurationError(`Unsupported problem type: ${task.extraInfo.problemType}`);
@@ -194,7 +196,7 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
 
     const { judgeInfo } = task.extraInfo;
 
-    const progress: SubmissionProgress<unknown> = {
+    const progress: SubmissionProgress<TestcaseResult> = {
       progressType: null
     };
 
@@ -259,7 +261,7 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
         }
         task.reportProgressRaw(progress);
       },
-      async testcaseWillEnqueue(subtaskIndex: number, testcaseIndex: number, extraParameters: unknown) {
+      async testcaseWillEnqueue(subtaskIndex, testcaseIndex, extraParameters) {
         if (finished) return null;
         if (!testcaseHashes[subtaskIndex]) testcaseHashes[subtaskIndex] = [];
 
@@ -276,13 +278,13 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
 
         return null;
       },
-      testcaseRunning(subtaskIndex: number, testcaseIndex: number) {
+      testcaseRunning(subtaskIndex, testcaseIndex) {
         if (finished) return;
         delete progress.subtasks[subtaskIndex].testcases[testcaseIndex].waiting;
         progress.subtasks[subtaskIndex].testcases[testcaseIndex].running = true;
         task.reportProgressRaw(progress);
       },
-      testcaseFinished(subtaskIndex: number, testcaseIndex: number, result: unknown) {
+      testcaseFinished(subtaskIndex, testcaseIndex, result) {
         if (finished) return;
         delete progress.subtasks[subtaskIndex].testcases[testcaseIndex].waiting;
         delete progress.subtasks[subtaskIndex].testcases[testcaseIndex].running;
@@ -294,12 +296,12 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
         }
         task.reportProgressRaw(progress);
       },
-      subtaskScoreUpdated(subtaskIndex: number, newScore: number) {
+      subtaskScoreUpdated(subtaskIndex, newScore) {
         if (finished) return;
         progress.subtasks[subtaskIndex].score = (newScore * progress.subtasks[subtaskIndex].fullScore) / 100;
         task.reportProgressRaw(progress);
       },
-      finished(status: SubmissionStatus, score: number) {
+      finished(status, score) {
         if (finished) return;
         finished = true;
         progress.progressType = SubmissionProgressType.Finished;
