@@ -1,30 +1,30 @@
 import { LanguageConfig } from ".";
 
-interface LanguageOptionsCpp {
+interface CompileAndRunOptionsCpp {
   compiler: string;
   std: string;
   O: string;
   m: string;
 }
 
-export const languageConfig: LanguageConfig<LanguageOptionsCpp> = {
+export const languageConfig: LanguageConfig<CompileAndRunOptionsCpp> = {
   name: "cpp",
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getMetaOptions: languageOptions => ({
+  getMetaOptions: compileAndRunOptions => ({
     sourceFilename: "main.cpp",
     binarySizeLimit: 5 * 1024 * 1024 // 5 MiB, enough unless someone initlizes globals badly
   }),
-  compile: (sourcePathInside, binaryDirectoryInside, languageOptions) => ({
-    executable: languageOptions.compiler === "g++" ? "/usr/bin/g++" : "/usr/bin/clang++",
+  compile: (sourcePathInside, binaryDirectoryInside, compileAndRunOptions) => ({
+    executable: compileAndRunOptions.compiler === "g++" ? "/usr/bin/g++" : "/usr/bin/clang++",
     parameters: [
       sourcePathInside,
       "-o",
       `${binaryDirectoryInside}/a.out`,
-      `-std=${languageOptions.std}`,
-      `-O${languageOptions.O}`,
+      `-std=${compileAndRunOptions.std}`,
+      `-O${compileAndRunOptions.O}`,
       "-fdiagnostics-color=always",
       "-DONLINE_JUDGE",
-      `-m${languageOptions.m}` // TODO: ignore this option on non-x86 platform
+      `-m${compileAndRunOptions.m}` // TODO: ignore this option on non-x86 platform
     ],
     time: 10000,
     memory: 1024 * 1024 * 1024 * 2,
@@ -37,7 +37,7 @@ export const languageConfig: LanguageConfig<LanguageOptionsCpp> = {
   run: (
     binaryDirectoryInside,
     workingDirectoryInside,
-    languageOptions,
+    compileAndRunOptions,
     time,
     memory,
     stdinFile,

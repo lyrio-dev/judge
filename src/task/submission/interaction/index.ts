@@ -54,7 +54,7 @@ export interface TestcaseResultInteraction {
 export interface SubmissionContentInteraction {
   language: string;
   code: string;
-  languageOptions: unknown;
+  compileAndRunOptions: unknown;
   skipSamples?: boolean;
 }
 
@@ -139,7 +139,7 @@ async function runTestcase(
       ...userLanguageConfig.run(
         userBinaryDirectory.inside,
         workingDirectory.inside,
-        task.extraInfo.submissionContent.languageOptions,
+        task.extraInfo.submissionContent.compileAndRunOptions,
         timeLimit,
         memoryLimit,
         pipeInteractorToUser.read,
@@ -177,7 +177,7 @@ async function runTestcase(
       ...interactorLanguageConfig.run(
         interactorBinaryDirectory.inside,
         workingDirectory.inside,
-        task.extraInfo.submissionContent.languageOptions,
+        task.extraInfo.submissionContent.compileAndRunOptions,
         interactorTimeLimit,
         interactorMemoryLimit,
         pipeUserToInteractor.read,
@@ -279,7 +279,7 @@ export async function runTask(
   const interactorCompileResult = await compile({
     language: judgeInfo.interactor.language,
     code: await fs.promises.readFile(getFile(task.extraInfo.testData[judgeInfo.interactor.filename]), "utf-8"),
-    languageOptions: judgeInfo.interactor.languageOptions
+    compileAndRunOptions: judgeInfo.interactor.compileAndRunOptions
   });
 
   if (!(interactorCompileResult instanceof CompileResultSuccess)) {
@@ -289,7 +289,7 @@ export async function runTask(
   const compileResult = await compile({
     language: task.extraInfo.submissionContent.language,
     code: task.extraInfo.submissionContent.code,
-    languageOptions: task.extraInfo.submissionContent.languageOptions,
+    compileAndRunOptions: task.extraInfo.submissionContent.compileAndRunOptions,
     extraSourceFiles: getExtraSourceFiles(judgeInfo, task.extraInfo.testData, task.extraInfo.submissionContent.language)
   });
 

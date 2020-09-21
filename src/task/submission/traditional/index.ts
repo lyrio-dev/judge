@@ -58,7 +58,7 @@ export interface TestcaseResultTraditional {
 export interface SubmissionContentTraditional {
   language: string;
   code: string;
-  languageOptions: unknown;
+  compileAndRunOptions: unknown;
   skipSamples?: boolean;
 }
 
@@ -135,7 +135,7 @@ async function runTestcase(
       ...languageConfig.run(
         binaryDirectory.inside,
         workingDirectory.inside,
-        task.extraInfo.submissionContent.languageOptions,
+        task.extraInfo.submissionContent.compileAndRunOptions,
         timeLimit,
         memoryLimit,
         judgeInfo.fileIo ? null : inputFile.inside,
@@ -258,7 +258,7 @@ export async function runTask(
     const compileResult = await compile({
       language: judgeInfo.checker.language,
       code: await fs.promises.readFile(getFile(task.extraInfo.testData[judgeInfo.checker.filename]), "utf-8"),
-      languageOptions: judgeInfo.checker.languageOptions
+      compileAndRunOptions: judgeInfo.checker.compileAndRunOptions
     });
 
     if (!(compileResult instanceof CompileResultSuccess)) {
@@ -271,7 +271,7 @@ export async function runTask(
   const compileResult = await compile({
     language: task.extraInfo.submissionContent.language,
     code: task.extraInfo.submissionContent.code,
-    languageOptions: task.extraInfo.submissionContent.languageOptions,
+    compileAndRunOptions: task.extraInfo.submissionContent.compileAndRunOptions,
     extraSourceFiles: getExtraSourceFiles(judgeInfo, task.extraInfo.testData, task.extraInfo.submissionContent.language)
   });
 

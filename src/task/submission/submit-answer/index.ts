@@ -200,7 +200,7 @@ export async function runTask(
         const compileResult = await compile({
           language: judgeInfo.checker.language,
           code: await fs.promises.readFile(getFile(task.extraInfo.testData[judgeInfo.checker.filename]), "utf-8"),
-          languageOptions: judgeInfo.checker.languageOptions
+          compileAndRunOptions: judgeInfo.checker.compileAndRunOptions
         });
 
         if (!(compileResult instanceof CompileResultSuccess)) {

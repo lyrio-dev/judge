@@ -66,7 +66,7 @@ export interface JudgeInfoInteraction {
     interface: "stdio" | "shm";
     sharedMemorySize?: number;
     language: string;
-    languageOptions: unknown;
+    compileAndRunOptions: unknown;
     filename: string;
     timeLimit?: number;
     memoryLimit?: number;

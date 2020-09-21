@@ -31,7 +31,7 @@ export interface CompileParameters extends ExecuteParameters {
 export interface CompileTask {
   language: string;
   code: string;
-  languageOptions: unknown;
+  compileAndRunOptions: unknown;
   extraSourceFiles?: Record<string, string>;
 }
 
@@ -39,7 +39,7 @@ async function hashCompileTask(compileTask: CompileTask): Promise<string> {
   return objectHash({
     language: compileTask.language,
     code: compileTask.code,
-    languageOptions: compileTask.languageOptions,
+    compileAndRunOptions: compileTask.compileAndRunOptions,
     extraSourceFiles:
       compileTask.extraSourceFiles &&
       (await Promise.all(
@@ -191,7 +191,7 @@ async function doCompile(
   languageConfig: LanguageConfig<unknown>,
   taskWorkingDirectory: string
 ): Promise<CompileResult> {
-  const { sourceFilename, binarySizeLimit } = languageConfig.getMetaOptions(compileTask.languageOptions);
+  const { sourceFilename, binarySizeLimit } = languageConfig.getMetaOptions(compileTask.compileAndRunOptions);
 
   const sourceDirectory: MappedPath = {
     outside: joinPath(taskWorkingDirectory, "source"),
@@ -222,7 +222,7 @@ async function doCompile(
   const executeParameters = languageConfig.compile(
     sourceFile.inside,
     binaryDirectory.inside,
-    compileTask.languageOptions
+    compileTask.compileAndRunOptions
   );
   const sandboxResult = await runSandbox({
     taskId: null,

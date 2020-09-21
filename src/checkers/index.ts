@@ -28,7 +28,7 @@ export interface CheckerTypeCustom {
   type: "custom";
   interface: string;
   language: string;
-  languageOptions: unknown;
+  compileAndRunOptions: unknown;
   filename: string;
   timeLimit?: number;
   memoryLimit?: number;

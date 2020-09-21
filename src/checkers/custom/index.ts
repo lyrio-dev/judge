@@ -81,7 +81,7 @@ export async function runCustomChecker(
           ...getLanguage(checker.language).run(
             SANDBOX_INSIDE_PATH_BINARY,
             workingDirectory.inside,
-            checker.languageOptions,
+            checker.compileAndRunOptions,
             timeLimit,
             memoryLimit,
             stdin,

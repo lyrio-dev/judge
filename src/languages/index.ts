@@ -7,7 +7,7 @@ export interface LanguageConfig<T> {
   name: string;
 
   getMetaOptions: (
-    languageOptions: T
+    compileAndRunOptions: T
   ) => {
     // The user submitted source file will be named with the name e.g. "main.cpp"
     sourceFilename: string;
@@ -19,14 +19,14 @@ export interface LanguageConfig<T> {
   compile: (
     sourcePathInside: string, // The path of the saved source code file
     binaryDirectoryInside: string, // The directory for the compiled binary file
-    languageOptions: T // Custom options passed by user
+    compileAndRunOptions: T // Custom options passed by user
   ) => CompileParameters;
 
   // Return the options for running the compiled program in the sandbox
   run: (
     binaryDirectoryInside: string, // The directory of the compiled binary
     workingDirectoryInside: string, // The working directory for the user's program, also for the input / output files
-    languageOptions: T, // Custom options passed by user
+    compileAndRunOptions: T, // Custom options passed by user
     time: number, // The time limit by the problem
     memory: number, // The memory limit by the problem
     stdinFile?: string | FileDescriptor,
