@@ -1,4 +1,5 @@
 import fs from "fs";
+import crypto from "crypto";
 
 import config from "./config";
 import * as fsNative from "./fsNative";
@@ -69,4 +70,17 @@ export function stringToOmited(str: string, lengthLimit: number) {
 
   const omitted = str.length - lengthLimit;
   return `${str.substr(0, lengthLimit)}\n<${omitted} byte${omitted !== 1 ? "s" : ""} omitted>`;
+}
+
+export function hashData(data: string): Promise<string> {
+  const hash = crypto.createHash("sha256");
+
+  const promise = new Promise<string>((resolve, reject) => {
+    hash.on("error", reject);
+    hash.on("finish", () => resolve(hash.digest("hex")));
+  });
+
+  hash.end(data);
+
+  return promise;
 }

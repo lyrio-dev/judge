@@ -1,10 +1,10 @@
 import objectHash from "object-hash";
 
 import { SubmissionTask, ProblemSample } from "@/task/submission";
+import { Checker, getCheckerMeta } from "@/checkers";
+import { getFileHash } from "@/file";
 
-import { Checker } from "@/checkers";
-
-import { SubmissionContentSubmitAnswer, TestcaseResultSubmitAnswer } from ".";
+import { ExtraParametersSubmitAnswer, SubmissionContentSubmitAnswer, TestcaseResultSubmitAnswer } from ".";
 import { validateJudgeInfoSubtasks } from "../common";
 
 export interface TestcaseConfig {
@@ -47,7 +47,12 @@ export interface JudgeInfoSubmitAnswer {
 
 /* eslint-disable no-throw-literal */
 export async function validateJudgeInfo(
-  task: SubmissionTask<JudgeInfoSubmitAnswer, SubmissionContentSubmitAnswer, TestcaseResultSubmitAnswer>
+  task: SubmissionTask<
+    JudgeInfoSubmitAnswer,
+    SubmissionContentSubmitAnswer,
+    TestcaseResultSubmitAnswer,
+    ExtraParametersSubmitAnswer
+  >
 ): Promise<void> {
   const { judgeInfo, testData } = task.extraInfo;
 
@@ -58,17 +63,36 @@ export async function validateJudgeInfo(
 }
 /* eslint-enable no-throw-literal */
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function hashSampleTestcase(judgeInfo: JudgeInfoSubmitAnswer, sample: ProblemSample): never {
+/* eslint-disable @typescript-eslint/no-unused-vars */
+export async function hashSampleTestcase(
+  judgeInfo: JudgeInfoSubmitAnswer,
+  sample: ProblemSample,
+  extraParametersSubmitAnswer: ExtraParametersSubmitAnswer
+): Promise<never> {
   throw new Error("Submit answer submissions should not run samples.");
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
-export function hashTestcase(judgeInfo: JudgeInfoSubmitAnswer, subtaskIndex: number, testcaseIndex: number) {
+export async function hashTestcase(
+  judgeInfo: JudgeInfoSubmitAnswer,
+  subtaskIndex: number,
+  testcaseIndex: number,
+  testData: Record<string, string>,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  [unzipResult, customCheckerCompileResult]: ExtraParametersSubmitAnswer
+) {
   const testcase = judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex];
 
+  const [inputDataHash, outputDataHash] = await Promise.all([
+    getFileHash(testData[testcase.inputFile]),
+    getFileHash(testData[testcase.outputFile])
+  ]);
+
   return objectHash({
-    inputFile: testcase.inputFile,
-    outputFile: testcase.outputFile,
-    userOutputFilename: testcase.userOutputFilename || testcase.outputFile
+    checkerMeta: getCheckerMeta(judgeInfo),
+    inputDataHash,
+    outputDataHash,
+    userOutputFilename: testcase.userOutputFilename || testcase.outputFile,
+    customCheckerCompileTaskHash: customCheckerCompileResult && customCheckerCompileResult.compileTaskHash
   });
 }

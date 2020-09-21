@@ -1,12 +1,9 @@
 import fs from "fs";
 
 import { v4 as uuid } from "uuid";
-import winston from "winston";
 
 import { SubmissionTask, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
-
-import { runTaskQueued } from "@/taskQueue";
 import { joinPath, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import config from "@/config";
 import { readFileOmitted } from "@/utils";
@@ -53,6 +50,8 @@ export interface TestcaseResultSubmitAnswer {
 
 export interface SubmissionContentSubmitAnswer {}
 
+export type ExtraParametersSubmitAnswer = [SubmissionFileUnzipResult, CompileResultSuccess];
+
 /**
  * Run a subtask testcase or sample testcase.
  *
@@ -60,116 +59,121 @@ export interface SubmissionContentSubmitAnswer {}
  * @param subtaskIndex If not null, it's a subtask testcase.
  */
 async function runTestcase(
-  task: SubmissionTask<JudgeInfoSubmitAnswer, SubmissionContentSubmitAnswer, TestcaseResultSubmitAnswer>,
+  task: SubmissionTask<
+    JudgeInfoSubmitAnswer,
+    SubmissionContentSubmitAnswer,
+    TestcaseResultSubmitAnswer,
+    ExtraParametersSubmitAnswer
+  >,
   judgeInfo: JudgeInfoSubmitAnswer,
   sampleId: number,
   sample: ProblemSample,
   subtaskIndex: number,
   testcaseIndex: number,
   testcase: TestcaseConfig,
-  [unzipResult, customCheckerCompileResult]: [SubmissionFileUnzipResult, CompileResultSuccess]
+  extraParameters: ExtraParametersSubmitAnswer,
+  taskWorkingDirectory: string
 ): Promise<TestcaseResultSubmitAnswer> {
-  return await runTaskQueued(async (taskWorkingDirectory: string) => {
-    winston.verbose(`Running testcase ${subtaskIndex}.${testcaseIndex}`);
-    task.reportProgress.testcaseRunning(subtaskIndex, testcaseIndex);
+  const [unzipResult, customCheckerCompileResult] = extraParameters;
 
-    const userOutputFilename = testcase.userOutputFilename || testcase.outputFile;
+  const userOutputFilename = testcase.userOutputFilename || testcase.outputFile;
 
-    const result: TestcaseResultSubmitAnswer = {
-      testcaseInfo: {
-        inputFile: testcase.inputFile,
-        outputFile: testcase.outputFile,
-        userOutputFilename
-      },
-      status: null,
-      score: 0
+  const result: TestcaseResultSubmitAnswer = {
+    testcaseInfo: {
+      inputFile: testcase.inputFile,
+      outputFile: testcase.outputFile,
+      userOutputFilename
+    },
+    status: null,
+    score: 0
+  };
+
+  result.input =
+    testcase.inputFile &&
+    (await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFile]), config.limit.dataDisplay));
+  result.output = await readFileOmitted(
+    getFile(task.extraInfo.testData[testcase.outputFile]),
+    config.limit.dataDisplay
+  );
+
+  const fileUnzipResult = unzipResult.status[userOutputFilename];
+  if (fileUnzipResult && fileUnzipResult.sizeExceededLimit) {
+    result.status = TestcaseStatusSubmitAnswer.OutputLimitExceeded;
+  } else if (!fileUnzipResult?.success) {
+    result.status = TestcaseStatusSubmitAnswer.FileError;
+  } else {
+    const workingDirectory = {
+      outside: joinPath(taskWorkingDirectory, "working"),
+      inside: SANDBOX_INSIDE_PATH_WORKING
     };
 
-    result.input =
-      testcase.inputFile &&
-      (await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFile]), config.limit.dataDisplay));
-    result.output = await readFileOmitted(
-      getFile(task.extraInfo.testData[testcase.outputFile]),
-      config.limit.dataDisplay
-    );
+    const tempDirectory = joinPath(taskWorkingDirectory, "temp");
 
-    const fileUnzipResult = unzipResult.status[userOutputFilename];
-    if (fileUnzipResult && fileUnzipResult.sizeExceededLimit) {
-      result.status = TestcaseStatusSubmitAnswer.OutputLimitExceeded;
-    } else if (!fileUnzipResult?.success) {
-      result.status = TestcaseStatusSubmitAnswer.FileError;
+    await Promise.all([fsNative.ensureDir(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
+
+    const inputFile = joinPath(workingDirectory, uuid());
+    if (testcase.inputFile)
+      await fsNative.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
+    else await fs.promises.writeFile(inputFile.outside, "");
+
+    const answerFile = joinPath(workingDirectory, uuid());
+    await fsNative.copy(getFile(task.extraInfo.testData[testcase.outputFile]), answerFile.outside);
+
+    const outputFile = joinPath(workingDirectory, uuid());
+    await fsNative.copy(fileUnzipResult.path, outputFile.outside);
+
+    result.userOutput = await readFileOmitted(outputFile.outside, config.limit.dataDisplayForSubmitAnswer);
+    result.userOutputLength = (await fs.promises.stat(outputFile.outside)).size;
+
+    const checkerResult =
+      judgeInfo.checker.type === "custom"
+        ? await runCustomChecker(
+            task.taskId,
+            judgeInfo.checker,
+            judgeInfo.checker.timeLimit,
+            judgeInfo.checker.memoryLimit,
+            customCheckerCompileResult,
+            inputFile,
+            outputFile,
+            answerFile,
+            null,
+            workingDirectory,
+            tempDirectory
+          )
+        : await runBuiltinChecker(outputFile.outside, answerFile.outside, judgeInfo.checker);
+
+    // Return string means checker error
+    if (typeof checkerResult === "string") {
+      result.status = TestcaseStatusSubmitAnswer.JudgementFailed;
+      result.score = 0;
+      result.systemMessage = checkerResult;
     } else {
-      const workingDirectory = {
-        outside: joinPath(taskWorkingDirectory, "working"),
-        inside: SANDBOX_INSIDE_PATH_WORKING
-      };
-
-      const tempDirectory = joinPath(taskWorkingDirectory, "temp");
-
-      await Promise.all([fsNative.ensureDir(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
-
-      const inputFile = joinPath(workingDirectory, uuid());
-      if (testcase.inputFile)
-        await fsNative.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
-      else await fs.promises.writeFile(inputFile.outside, "");
-
-      const answerFile = joinPath(workingDirectory, uuid());
-      await fsNative.copy(getFile(task.extraInfo.testData[testcase.outputFile]), answerFile.outside);
-
-      const outputFile = joinPath(workingDirectory, uuid());
-      await fsNative.copy(fileUnzipResult.path, outputFile.outside);
-
-      result.userOutput = await readFileOmitted(outputFile.outside, config.limit.dataDisplayForSubmitAnswer);
-      result.userOutputLength = (await fs.promises.stat(outputFile.outside)).size;
-
-      const checkerResult =
-        judgeInfo.checker.type === "custom"
-          ? await runCustomChecker(
-              task.taskId,
-              judgeInfo.checker,
-              judgeInfo.checker.timeLimit,
-              judgeInfo.checker.memoryLimit,
-              customCheckerCompileResult,
-              inputFile,
-              outputFile,
-              answerFile,
-              null,
-              workingDirectory,
-              tempDirectory
-            )
-          : await runBuiltinChecker(outputFile.outside, answerFile.outside, judgeInfo.checker);
-
-      // Return string means checker error
-      if (typeof checkerResult === "string") {
-        result.status = TestcaseStatusSubmitAnswer.JudgementFailed;
-        result.score = 0;
-        result.systemMessage = checkerResult;
-      } else {
-        if (checkerResult.score == null) result.status = TestcaseStatusSubmitAnswer.JudgementFailed;
-        result.checkerMessage = checkerResult.checkerMessage;
-        result.score = checkerResult.score || 0;
-      }
-
-      if (result.status !== TestcaseStatusSubmitAnswer.JudgementFailed) {
-        if (result.score === 100) {
-          result.status = TestcaseStatusSubmitAnswer.Accepted;
-        } else if (result.score === 0) {
-          result.status = TestcaseStatusSubmitAnswer.WrongAnswer;
-        } else {
-          result.status = TestcaseStatusSubmitAnswer.PartiallyCorrect;
-        }
-      }
+      if (checkerResult.score == null) result.status = TestcaseStatusSubmitAnswer.JudgementFailed;
+      result.checkerMessage = checkerResult.checkerMessage;
+      result.score = checkerResult.score || 0;
     }
 
-    task.reportProgress.testcaseFinished(subtaskIndex, testcaseIndex, result);
-    winston.verbose(`Finished sample testcase ${sampleId}: ${JSON.stringify(result)}`);
+    if (result.status !== TestcaseStatusSubmitAnswer.JudgementFailed) {
+      if (result.score === 100) {
+        result.status = TestcaseStatusSubmitAnswer.Accepted;
+      } else if (result.score === 0) {
+        result.status = TestcaseStatusSubmitAnswer.WrongAnswer;
+      } else {
+        result.status = TestcaseStatusSubmitAnswer.PartiallyCorrect;
+      }
+    }
+  }
 
-    return result;
-  });
+  return result;
 }
 
 export async function runTask(
-  task: SubmissionTask<JudgeInfoSubmitAnswer, SubmissionContentSubmitAnswer, TestcaseResultSubmitAnswer>
+  task: SubmissionTask<
+    JudgeInfoSubmitAnswer,
+    SubmissionContentSubmitAnswer,
+    TestcaseResultSubmitAnswer,
+    ExtraParametersSubmitAnswer
+  >
 ) {
   const { judgeInfo } = task.extraInfo;
 
@@ -187,7 +191,7 @@ export async function runTask(
     (async () => {
       await task.file.waitForDownload();
       unzipResult = await task.file.unzip(wantedFiles);
-      task.reportProgress.compiling(); // Show "Compiling" status after file is downloaded
+      task.events.compiling(); // Show "Compiling" status after file is downloaded
     })(),
     (async () => {
       if (judgeInfo.checker.type === "custom") {

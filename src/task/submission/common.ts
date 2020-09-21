@@ -1,4 +1,8 @@
 import toposort from "toposort";
+import winston from "winston";
+
+import { Disposer } from "@/posixUtils";
+import { runTaskQueued } from "@/taskQueue";
 
 import { SubmissionTask, ProblemSample, SubmissionStatus } from ".";
 
@@ -54,17 +58,19 @@ export async function runCommonTask<
   extraParameters,
   onTestcase
 }: {
-  task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>;
+  task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters>;
   extraParameters: ExtraParameters;
   onTestcase: (
-    task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>,
+    task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters>,
     judgeInfo: JudgeInfo,
     sampleId: number,
     sample: ProblemSample,
     subtaskIndex: number,
     testcaseIndex: number,
     testcase: TestcaseConfig,
-    extraParameters: ExtraParameters
+    extraParameters: ExtraParameters,
+    taskWorkingDirectory: string,
+    disposer?: Disposer
   ) => Promise<TestcaseResult>;
 }) {
   const { judgeInfo } = task.extraInfo;
@@ -89,7 +95,56 @@ export async function runCommonTask<
     task.extraInfo.samples &&
     !task.extraInfo.submissionContent.skipSamples
   );
-  task.reportProgress.startedRunning(runSamples && samples.length, subtaskFullScores);
+  task.events.startedRunning(runSamples && samples.length, subtaskFullScores);
+
+  const runTestcaseQueued = async (
+    sampleId: number,
+    sample: ProblemSample,
+    subtaskIndex: number,
+    testcaseIndex: number,
+    testcase: TestcaseConfig
+  ) => {
+    const isSample = sampleId != null;
+
+    const existingResult = isSample
+      ? await task.events.sampleTestcaseWillEnqueue(sampleId, sample, extraParameters)
+      : await task.events.testcaseWillEnqueue(subtaskIndex, testcaseIndex, extraParameters);
+
+    if (existingResult) return existingResult;
+
+    return await runTaskQueued(async (taskWorkingDirectory, disposer) => {
+      if (isSample) {
+        winston.verbose(`Running sample testcase ${sampleId}`);
+        task.events.sampleTestcaseRunning(sampleId);
+      } else {
+        winston.verbose(`Running testcase ${subtaskIndex}.${testcaseIndex}`);
+        task.events.testcaseRunning(subtaskIndex, testcaseIndex);
+      }
+
+      const result = await onTestcase(
+        task,
+        judgeInfo,
+        sampleId,
+        sample,
+        subtaskIndex,
+        testcaseIndex,
+        testcase,
+        extraParameters,
+        taskWorkingDirectory,
+        disposer
+      );
+
+      if (isSample) {
+        task.events.sampleTestcaseFinished(sampleId, sample, result);
+        winston.verbose(`Finished testcase ${subtaskIndex}.${testcaseIndex}: ${JSON.stringify(result)}`);
+      } else {
+        task.events.testcaseFinished(subtaskIndex, testcaseIndex, result);
+        winston.verbose(`Finished sample testcase ${sampleId}: ${JSON.stringify(result)}`);
+      }
+
+      return result;
+    });
+  };
 
   let firstNonAcceptedStatus: string = null;
 
@@ -98,11 +153,11 @@ export async function runCommonTask<
   if (runSamples) {
     for (const i of samples.keys()) {
       if (samplesFailed) {
-        task.reportProgress.sampleTestcaseFinished(i, samples[i], null);
+        task.events.sampleTestcaseFinished(i, samples[i], null);
         continue;
       }
 
-      const result = await onTestcase(task, judgeInfo, i, samples[i], null, null, null, extraParameters);
+      const result = await runTestcaseQueued(i, samples[i], null, null, null);
 
       if (result.status !== "Accepted") {
         samplesFailed = true;
@@ -124,9 +179,9 @@ export async function runCommonTask<
       (Array.isArray(subtask.dependencies) && subtask.dependencies.some(i => Math.round(subtaskScores[i]) === 0))
     ) {
       // Skip
-      task.reportProgress.subtaskScoreUpdated(subtaskIndex, 0);
+      task.events.subtaskScoreUpdated(subtaskIndex, 0);
       for (const i of subtask.testcases.keys()) {
-        task.reportProgress.testcaseFinished(subtaskIndex, i, null);
+        task.events.testcaseFinished(subtaskIndex, i, null);
       }
       continue;
     }
@@ -154,9 +209,9 @@ export async function runCommonTask<
     if (subtask.scoringType === "Sum") {
       results = await Promise.all(
         normalizedTestcases.map(async (testcase, i) => {
-          const result = await onTestcase(task, judgeInfo, null, null, subtaskIndex, i, testcase, extraParameters);
+          const result = await runTestcaseQueued(null, null, subtaskIndex, i, testcase);
           subtaskScore += (result.score * normalizedTestcases[i].points) / 100;
-          task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
+          task.events.subtaskScoreUpdated(subtaskIndex, subtaskScore);
           return result;
         })
       );
@@ -166,12 +221,12 @@ export async function runCommonTask<
         const testcase = normalizedTestcases[i];
 
         if (Math.round(subtaskScore) === 0) {
-          task.reportProgress.testcaseFinished(subtaskIndex, i, null);
+          task.events.testcaseFinished(subtaskIndex, i, null);
         } else {
-          const result = await onTestcase(task, judgeInfo, null, null, subtaskIndex, i, testcase, extraParameters);
+          const result = await runTestcaseQueued(null, null, subtaskIndex, i, testcase);
           if (subtask.scoringType === "GroupMin") subtaskScore = Math.min(subtaskScore, result.score);
           else subtaskScore = (subtaskScore * result.score) / 100;
-          task.reportProgress.subtaskScoreUpdated(subtaskIndex, subtaskScore);
+          task.events.subtaskScoreUpdated(subtaskIndex, subtaskScore);
           results.push(result);
         }
       }
@@ -195,9 +250,9 @@ export async function runCommonTask<
     // This shouldn't happen
     throw new Error("Couldn't determine submission result status");
   } else if (firstNonAcceptedStatus === null) {
-    task.reportProgress.finished(SubmissionStatus.Accepted, roundedScore);
+    task.events.finished(SubmissionStatus.Accepted, roundedScore);
   } else {
-    task.reportProgress.finished((firstNonAcceptedStatus as unknown) as SubmissionStatus, roundedScore);
+    task.events.finished((firstNonAcceptedStatus as unknown) as SubmissionStatus, roundedScore);
   }
 }
 

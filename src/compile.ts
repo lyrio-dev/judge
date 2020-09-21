@@ -18,7 +18,7 @@ import {
 } from "./sandbox";
 import config from "./config";
 import { runTaskQueued } from "./taskQueue";
-import { getFile } from "./file";
+import { getFile, getFileHash } from "./file";
 import * as fsNative from "./fsNative";
 
 export interface CompileParameters extends ExecuteParameters {
@@ -35,7 +35,24 @@ export interface CompileTask {
   extraSourceFiles?: Record<string, string>;
 }
 
+async function hashCompileTask(compileTask: CompileTask): Promise<string> {
+  return objectHash({
+    language: compileTask.language,
+    code: compileTask.code,
+    languageOptions: compileTask.languageOptions,
+    extraSourceFiles:
+      compileTask.extraSourceFiles &&
+      (await Promise.all(
+        Object.entries(compileTask.extraSourceFiles).map(async ([filename, fileUuid]) => [
+          filename,
+          await getFileHash(fileUuid)
+        ])
+      ))
+  });
+}
+
 export interface CompileResult {
+  compileTaskHash: string;
   success: boolean;
   message: string;
 }
@@ -46,6 +63,7 @@ export class CompileResultSuccess implements CompileResult {
   public readonly success: true = true;
 
   constructor(
+    public readonly compileTaskHash: string,
     public readonly message: string,
     public readonly binaryDirectory: string,
     public readonly binaryDirectorySize: number
@@ -70,7 +88,7 @@ export class CompileResultSuccess implements CompileResult {
     this.reference();
     await fsNative.copy(this.binaryDirectory, newBinaryDirectory);
     await this.dereference();
-    return new CompileResultSuccess(this.message, newBinaryDirectory, this.binaryDirectorySize);
+    return new CompileResultSuccess(this.compileTaskHash, this.message, newBinaryDirectory, this.binaryDirectorySize);
   }
 }
 
@@ -83,8 +101,8 @@ class CompileResultCache {
   private readonly lruCache = new LruCache<string, CompileResultSuccess>({
     max: config.binaryCacheMaxSize,
     length: result => result.binaryDirectorySize,
-    dispose: (taskHash, result) => {
-      winston.verbose(`dispose() from compile result cache: ${taskHash}`);
+    dispose: (compileTaskHash, result) => {
+      winston.verbose(`dispose() from compile result cache: ${compileTaskHash}`);
       setImmediate(() => {
         // It's safe NOT to await it..
         result.dereference().catch(e => winston.error(`Failed to remove compile result on evicting cache: ${e.stack}`));
@@ -95,19 +113,19 @@ class CompileResultCache {
   // The set()/get()'s returned result is reference()-ed
   // and must be dereference()-ed
 
-  public get(taskHash: string): CompileResultSuccess {
-    if (this.lruCache.has(taskHash)) return this.lruCache.get(taskHash).reference();
+  public get(compileTaskHash: string): CompileResultSuccess {
+    if (this.lruCache.has(compileTaskHash)) return this.lruCache.get(compileTaskHash).reference();
     return null;
   }
 
-  // set() should not be called twice with the same taskHash in the same time
-  // i.e. call another time with the same taskHash before the previous finished
-  public async set(taskHash: string, result: CompileResultSuccess): Promise<CompileResultSuccess> {
-    if (this.lruCache.has(taskHash)) return this.lruCache.get(taskHash).reference();
+  // set() should not be called twice with the same compileTaskHash in the same time
+  // i.e. call another time with the same compileTaskHash before the previous finished
+  public async set(compileTaskHash: string, result: CompileResultSuccess): Promise<CompileResultSuccess> {
+    if (this.lruCache.has(compileTaskHash)) return this.lruCache.get(compileTaskHash).reference();
 
     const newCompileResult = await result.copyTo(joinPath(config.binaryCacheStore, uuid()));
     newCompileResult.reference();
-    this.lruCache.set(taskHash, newCompileResult);
+    this.lruCache.set(compileTaskHash, newCompileResult);
     return newCompileResult.reference();
   }
 }
@@ -118,41 +136,41 @@ interface PendingCompileTask {
 }
 
 // If there're multiple calls to compile() with the same compileTask, it's to prevent the task to be compiled multiple times
-// taskHash -> Promise of task
+// compileTaskHash -> Promise of task
 const pendingCompileTasks: Map<string, PendingCompileTask> = new Map();
 const compileResultCache = new CompileResultCache();
 
 export async function compile(compileTask: CompileTask): Promise<CompileResult> {
   const languageConfig = getLanguage(compileTask.language);
 
-  const taskHash = objectHash(compileTask);
+  const compileTaskHash = await hashCompileTask(compileTask);
 
-  const cachedResult = compileResultCache.get(taskHash);
+  const cachedResult = compileResultCache.get(compileTaskHash);
   if (cachedResult) {
-    winston.verbose(`Use cached compile reslt for ${taskHash}`);
+    winston.verbose(`Use cached compile reslt for ${compileTaskHash}`);
     return cachedResult;
   }
 
-  let pendingCompileTask = pendingCompileTasks.get(taskHash);
+  let pendingCompileTask = pendingCompileTasks.get(compileTaskHash);
   if (!pendingCompileTask) {
     // Use a array of functions to ensure every calls to compile() of this task could get
     // a valid CompileResultSuccess object (with positive referenceCount)
     // I don't think "await promise" is guaranteed to return in a synchronous flow after the promise resolved
     const resultConsumers = [];
     pendingCompileTasks.set(
-      taskHash,
+      compileTaskHash,
       (pendingCompileTask = {
         resultConsumers,
         promise: runTaskQueued(async taskWorkingDirectory => {
           // The compileResult is already reference()-ed
-          const compileResult = await doCompile(compileTask, taskHash, languageConfig, taskWorkingDirectory);
+          const compileResult = await doCompile(compileTask, compileTaskHash, languageConfig, taskWorkingDirectory);
           winston.verbose(`Compile result: ${JSON.stringify(compileResult)}`);
 
           for (const resultConsumer of resultConsumers)
             resultConsumer(compileResult instanceof CompileResultSuccess ? compileResult.reference() : compileResult);
 
           if (compileResult instanceof CompileResultSuccess) await compileResult.dereference();
-        }).finally(() => pendingCompileTasks.delete(taskHash))
+        }).finally(() => pendingCompileTasks.delete(compileTaskHash))
       })
     );
   }
@@ -169,7 +187,7 @@ export async function compile(compileTask: CompileTask): Promise<CompileResult> 
 // Return reference()-ed result if success
 async function doCompile(
   compileTask: CompileTask,
-  taskHash: string,
+  compileTaskHash: string,
   languageConfig: LanguageConfig<unknown>,
   taskWorkingDirectory: string
 ): Promise<CompileResult> {
@@ -231,11 +249,13 @@ async function doCompile(
       const binaryDirectorySize = await fsNative.calcSize(binaryDirectory.outside);
       if (binaryDirectorySize > binarySizeLimit) {
         return {
+          compileTaskHash,
           success: false,
           message: `The source code compiled to ${binaryDirectorySize} bytes, exceeding the size limit.\n\n${message}`.trim()
         };
       } else if (binaryDirectorySize > config.binaryCacheMaxSize) {
         return {
+          compileTaskHash,
           success: false,
           message: `The source code compiled to ${binaryDirectorySize} bytes, exceeding the limit of cache storage.\n\n${message}`.trim()
         };
@@ -243,18 +263,20 @@ async function doCompile(
         // We must done copying it to the cache before returning
         // Since the initial compile result's directory is NOT preserved after returning to the task queue
         return await compileResultCache.set(
-          taskHash,
-          new CompileResultSuccess(message, binaryDirectory.outside, binaryDirectorySize)
+          compileTaskHash,
+          new CompileResultSuccess(compileTaskHash, message, binaryDirectory.outside, binaryDirectorySize)
         );
       }
     } else {
       return {
+        compileTaskHash,
         success: false,
         message
       };
     }
   } else {
     return {
+      compileTaskHash,
       success: false,
       message: `A ${SandboxStatus[sandboxResult.status]} encountered while compiling the code.\n\n${message}`.trim()
     };

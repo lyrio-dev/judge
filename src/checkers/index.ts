@@ -90,3 +90,18 @@ export function parseTestlibMessage(message: string): CheckerResult | string {
     return `Couldn't parse testlib's message: ${friendlyMessage}`;
   }
 }
+
+export function getCheckerMeta<JudgeInfo extends { timeLimit?: number; memoryLimit?: number; checker: Checker }>(
+  judgeInfo: JudgeInfo
+): Checker {
+  const { checker } = judgeInfo;
+
+  if (checker.type !== "custom") return checker;
+
+  return {
+    ...checker,
+    filename: null,
+    timeLimit: checker.timeLimit || judgeInfo.timeLimit,
+    memoryLimit: checker.memoryLimit || judgeInfo.memoryLimit
+  };
+}

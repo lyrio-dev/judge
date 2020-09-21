@@ -1,10 +1,11 @@
 import objectHash from "object-hash";
 
 import { SubmissionTask, ProblemSample } from "@/task/submission";
+import { Checker, getCheckerMeta } from "@/checkers";
+import { hashData } from "@/utils";
+import { getFileHash } from "@/file";
 
-import { Checker } from "@/checkers";
-
-import { SubmissionContentTraditional, TestcaseResultTraditional } from ".";
+import { ExtraParametersTraditional, SubmissionContentTraditional, TestcaseResultTraditional } from ".";
 import { validateJudgeInfoSubtasks, validateJudgeInfoExtraSourceFiles } from "../common";
 
 export interface TestcaseConfig {
@@ -79,7 +80,12 @@ export interface JudgeInfoTraditional {
 
 /* eslint-disable no-throw-literal */
 export async function validateJudgeInfo(
-  task: SubmissionTask<JudgeInfoTraditional, SubmissionContentTraditional, TestcaseResultTraditional>
+  task: SubmissionTask<
+    JudgeInfoTraditional,
+    SubmissionContentTraditional,
+    TestcaseResultTraditional,
+    ExtraParametersTraditional
+  >
 ): Promise<void> {
   const { judgeInfo, testData } = task.extraInfo;
 
@@ -92,26 +98,47 @@ export async function validateJudgeInfo(
 }
 /* eslint-enable no-throw-literal */
 
-export function hashSampleTestcase(judgeInfo: JudgeInfoTraditional, sample: ProblemSample) {
+export async function hashSampleTestcase(
+  judgeInfo: JudgeInfoTraditional,
+  sample: ProblemSample,
+  [compileResult, customCheckerCompileResult]: ExtraParametersTraditional
+) {
+  const [inputDataHash, outputDataHash] = await Promise.all([hashData(sample.inputData), hashData(sample.outputData)]);
+
   return objectHash({
-    inputData: sample.inputData,
-    outputData: sample.outputData,
+    fileIo: judgeInfo.fileIo,
+    checkerMeta: getCheckerMeta(judgeInfo),
+    inputDataHash,
+    outputDataHash,
     timeLimit: judgeInfo.timeLimit,
-    memoryLimit: judgeInfo.memoryLimit
+    memoryLimit: judgeInfo.memoryLimit,
+    compileTaskHash: compileResult.compileTaskHash,
+    customCheckerCompileTaskHash: customCheckerCompileResult?.compileTaskHash
   });
 }
 
-export function hashTestcase(judgeInfo: JudgeInfoTraditional, subtaskIndex: number, testcaseIndex: number) {
+export async function hashTestcase(
+  judgeInfo: JudgeInfoTraditional,
+  subtaskIndex: number,
+  testcaseIndex: number,
+  testData: Record<string, string>,
+  [compileResult, customCheckerCompileResult]: ExtraParametersTraditional
+) {
+  const testcase = judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex];
+
+  const [inputDataHash, outputDataHash] = await Promise.all([
+    getFileHash(testData[testcase.inputFile]),
+    getFileHash(testData[testcase.outputFile])
+  ]);
+
   return objectHash({
-    inputFile: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].inputFile,
-    outputFile: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].outputFile,
-    timeLimit:
-      judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].timeLimit ||
-      judgeInfo.subtasks[subtaskIndex].timeLimit ||
-      judgeInfo.timeLimit,
-    memoryLimit:
-      judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].memoryLimit ||
-      judgeInfo.subtasks[subtaskIndex].memoryLimit ||
-      judgeInfo.memoryLimit
+    fileIo: judgeInfo.fileIo,
+    checkerMeta: getCheckerMeta(judgeInfo),
+    inputDataHash,
+    outputDataHash,
+    timeLimit: testcase.timeLimit || judgeInfo.subtasks[subtaskIndex].timeLimit || judgeInfo.timeLimit,
+    memoryLimit: testcase.memoryLimit || judgeInfo.subtasks[subtaskIndex].memoryLimit || judgeInfo.memoryLimit,
+    compileTaskHash: compileResult.compileTaskHash,
+    customCheckerCompileTaskHash: customCheckerCompileResult?.compileTaskHash
   });
 }

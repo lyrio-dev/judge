@@ -94,14 +94,24 @@ export interface SubmissionProgress<TestcaseResult> {
   }[];
 }
 
-export interface SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>
+export interface SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters>
   extends Task<SubmissionExtraInfo<JudgeInfo, SubmissionContent>, SubmissionProgress<TestcaseResult>> {
-  reportProgress: {
+  events: {
     compiling(): void;
     compiled(compile: { success: boolean; message: string }): void;
     startedRunning(samplesCount: number, subtaskFullScores: number[]): void;
+    sampleTestcaseWillEnqueue(
+      sampleId: number,
+      sample: ProblemSample,
+      extraParameters: ExtraParameters
+    ): Promise<TestcaseResult>;
     sampleTestcaseRunning(sampleId: number): void;
     sampleTestcaseFinished(sampleId: number, sample: ProblemSample, result: TestcaseResult): void;
+    testcaseWillEnqueue(
+      subtaskIndex: number,
+      testcaseIndex: number,
+      extraParameters: ExtraParameters
+    ): Promise<TestcaseResult>;
     testcaseRunning(subtaskIndex: number, testcaseIndex: number): void;
     testcaseFinished(subtaskIndex: number, testcaseIndex: number, result: TestcaseResult): void;
     subtaskScoreUpdated(subtaskIndex: number, newScore: number): void;
@@ -112,15 +122,27 @@ export interface SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>
   file?: SubmissionFile;
 }
 
-export interface SubmissionHandler<JudgeInfo, SubmissionContent, TestcaseResult> {
-  validateJudgeInfo: (task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>) => Promise<void>;
-  hashTestcase: (judgeInfo: JudgeInfo, subtaskIndex: number, testcaseIndex: number) => string;
-  hashSampleTestcase: (judgeInfo: JudgeInfo, sample: ProblemSample) => string;
+export interface SubmissionHandler<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters> {
+  validateJudgeInfo: (
+    task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters>
+  ) => Promise<void>;
+  hashTestcase: (
+    judgeInfo: JudgeInfo,
+    subtaskIndex: number,
+    testcaseIndex: number,
+    testData: Record<string, string>,
+    extraParameters: ExtraParameters
+  ) => Promise<string>;
+  hashSampleTestcase: (
+    judgeInfo: JudgeInfo,
+    sample: ProblemSample,
+    extraParameters: ExtraParameters
+  ) => Promise<string>;
 
-  runTask: (task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult>) => Promise<void>;
+  runTask: (task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters>) => Promise<void>;
 }
 
-const problemTypeHandlers: Record<ProblemType, SubmissionHandler<unknown, unknown, unknown>> = {
+const problemTypeHandlers: Record<ProblemType, SubmissionHandler<unknown, unknown, unknown, unknown>> = {
   [ProblemType.TRADITIONAL]: Traditional,
   [ProblemType.INTERACTION]: Interaction,
   [ProblemType.SUBMIT_ANSWER]: SubmitAnswer
@@ -143,7 +165,7 @@ function getTestcaseCountOfSubtask(judgeInfo: JudgeInfoCommon, subtaskIndex: num
   return 1; // Non-common type
 }
 
-export default async function onSubmission(task: SubmissionTask<unknown, unknown, unknown>): Promise<void> {
+export default async function onSubmission(task: SubmissionTask<unknown, unknown, unknown, unknown>): Promise<void> {
   try {
     if (!(task.extraInfo.problemType in ProblemType)) {
       throw new ConfigurationError(`Unsupported problem type: ${task.extraInfo.problemType}`);
@@ -176,8 +198,11 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
       progressType: null
     };
 
+    const sampleTestcaseHashes: string[] = [];
+    const testcaseHashes: string[][] = [];
+
     let finished = false;
-    task.reportProgress = {
+    task.events = {
       compiling() {
         if (finished) return;
         task.reportProgressRaw({
@@ -188,7 +213,7 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
         if (finished) return;
         progress.compile = compile;
       },
-      startedRunning(samplesCount: number, subtaskFullScores: number[]) {
+      startedRunning(samplesCount, subtaskFullScores) {
         if (finished) return;
         progress.progressType = SubmissionProgressType.Running;
         progress.testcaseResult = {};
@@ -206,23 +231,50 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
         }));
         task.reportProgressRaw(progress);
       },
-      sampleTestcaseRunning(sampleId: number) {
+      async sampleTestcaseWillEnqueue(sampleId, sample, extraParameters) {
+        if (finished) return null;
+
+        const testcaseHash = await problemTypeHandler.hashSampleTestcase(judgeInfo, sample, extraParameters);
+        sampleTestcaseHashes[sampleId] = testcaseHash;
+
+        if (progress.testcaseResult[testcaseHash]) return progress.testcaseResult[testcaseHash];
+
+        return null;
+      },
+      sampleTestcaseRunning(sampleId) {
         if (finished) return;
         delete progress.samples[sampleId].waiting;
         progress.samples[sampleId].running = true;
         task.reportProgressRaw(progress);
       },
-      sampleTestcaseFinished(sampleId: number, sample: ProblemSample, result: unknown) {
+      sampleTestcaseFinished(sampleId, sample, result) {
         if (finished) return;
         delete progress.samples[sampleId].waiting;
         delete progress.samples[sampleId].running;
         if (result) {
           // If not "Skipped"
-          const testcaseHash = problemTypeHandler.hashSampleTestcase(judgeInfo, sample);
+          const testcaseHash = sampleTestcaseHashes[sampleId];
           progress.samples[sampleId].testcaseHash = testcaseHash;
           progress.testcaseResult[testcaseHash] = result;
         }
         task.reportProgressRaw(progress);
+      },
+      async testcaseWillEnqueue(subtaskIndex: number, testcaseIndex: number, extraParameters: unknown) {
+        if (finished) return null;
+        if (!testcaseHashes[subtaskIndex]) testcaseHashes[subtaskIndex] = [];
+
+        const testcaseHash = await problemTypeHandler.hashTestcase(
+          judgeInfo,
+          subtaskIndex,
+          testcaseIndex,
+          task.extraInfo.testData,
+          extraParameters
+        );
+        testcaseHashes[subtaskIndex][testcaseIndex] = testcaseHash;
+
+        if (progress.testcaseResult[testcaseHash]) return progress.testcaseResult[testcaseHash];
+
+        return null;
       },
       testcaseRunning(subtaskIndex: number, testcaseIndex: number) {
         if (finished) return;
@@ -236,7 +288,7 @@ export default async function onSubmission(task: SubmissionTask<unknown, unknown
         delete progress.subtasks[subtaskIndex].testcases[testcaseIndex].running;
         if (result) {
           // If not "Skipped"
-          const testcaseHash = problemTypeHandler.hashTestcase(judgeInfo, subtaskIndex, testcaseIndex);
+          const testcaseHash = testcaseHashes[subtaskIndex][testcaseIndex];
           progress.subtasks[subtaskIndex].testcases[testcaseIndex].testcaseHash = testcaseHash;
           progress.testcaseResult[testcaseHash] = result;
         }

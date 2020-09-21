@@ -1,9 +1,11 @@
 import fs from "fs";
 import { join } from "path";
+import crypto from "crypto";
 
 import axios from "axios";
 import Queue from "promise-queue";
 import winston from "winston";
+import LRUCache from "lru-cache";
 
 import config from "./config";
 import rpc from "./rpc";
@@ -81,4 +83,36 @@ export async function ensureFiles(fileUuids: string[]) {
 
 export function getFile(fileUuid: string) {
   return join(config.dataStore, fileUuid);
+}
+
+/**
+ * We use SHA256 to distinguish different input/output files for a testcase
+ * It's cached in a LRU cache.
+ */
+const fileHashCache = new LRUCache<string, Promise<string>>({
+  // One file's SHA256 cache costs very little, so we can cache very much results.
+  max: 1024 * 1024
+});
+
+const emptyDataHash = crypto.createHash("sha256").update("").digest("hex");
+export async function getFileHash(fileUuid: string) {
+  if (!fileUuid) return emptyDataHash;
+
+  if (fileHashCache.has(fileUuid)) return await fileHashCache.get(fileUuid);
+
+  const promise = new Promise<string>((resolve, reject) => {
+    const hash = crypto.createHash("sha256");
+
+    const file = fs.createReadStream(getFile(fileUuid));
+    file.pipe(hash);
+
+    file.on("error", reject);
+    hash.on("error", reject);
+
+    hash.on("finish", () => resolve(hash.digest("hex")));
+  });
+
+  fileHashCache.set(fileUuid, promise);
+
+  return promise;
 }

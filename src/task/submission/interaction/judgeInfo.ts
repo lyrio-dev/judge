@@ -1,8 +1,10 @@
 import objectHash from "object-hash";
 
 import { SubmissionTask, ProblemSample } from "@/task/submission";
+import { getFileHash } from "@/file";
+import { hashData } from "@/utils";
 
-import { SubmissionContentInteraction, TestcaseResultInteraction } from ".";
+import { ExtraParametersInteraction, SubmissionContentInteraction, TestcaseResultInteraction } from ".";
 import { validateJudgeInfoSubtasks, validateJudgeInfoExtraSourceFiles } from "../common";
 
 export interface TestcaseConfig {
@@ -76,7 +78,12 @@ export interface JudgeInfoInteraction {
 
 /* eslint-disable no-throw-literal */
 export async function validateJudgeInfo(
-  task: SubmissionTask<JudgeInfoInteraction, SubmissionContentInteraction, TestcaseResultInteraction>
+  task: SubmissionTask<
+    JudgeInfoInteraction,
+    SubmissionContentInteraction,
+    TestcaseResultInteraction,
+    ExtraParametersInteraction
+  >
 ): Promise<void> {
   const { judgeInfo, testData } = task.extraInfo;
 
@@ -89,24 +96,47 @@ export async function validateJudgeInfo(
 }
 /* eslint-enable no-throw-literal */
 
-export function hashSampleTestcase(judgeInfo: JudgeInfoInteraction, sample: ProblemSample) {
+export function getInteractorMeta(judgeInfo: JudgeInfoInteraction) {
+  const { interactor } = judgeInfo;
+
+  return {
+    ...interactor,
+    filename: null,
+    timeLimit: interactor.timeLimit || judgeInfo.timeLimit,
+    memoryLimit: interactor.memoryLimit || judgeInfo.memoryLimit
+  };
+}
+
+export async function hashSampleTestcase(
+  judgeInfo: JudgeInfoInteraction,
+  sample: ProblemSample,
+  [compileResult, interactorCompileResult]: ExtraParametersInteraction
+) {
   return objectHash({
-    inputData: sample.inputData,
+    interactor: getInteractorMeta(judgeInfo),
+    inputDataHash: await hashData(sample.inputData),
     timeLimit: judgeInfo.timeLimit,
-    memoryLimit: judgeInfo.memoryLimit
+    memoryLimit: judgeInfo.memoryLimit,
+    compileTaskHash: compileResult.compileTaskHash,
+    interactorCompileTaskHash: interactorCompileResult.compileTaskHash
   });
 }
 
-export function hashTestcase(judgeInfo: JudgeInfoInteraction, subtaskIndex: number, testcaseIndex: number) {
+export async function hashTestcase(
+  judgeInfo: JudgeInfoInteraction,
+  subtaskIndex: number,
+  testcaseIndex: number,
+  testData: Record<string, string>,
+  [compileResult, interactorCompileResult]: ExtraParametersInteraction
+) {
+  const testcase = judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex];
+
   return objectHash({
-    inputFile: judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].inputFile,
-    timeLimit:
-      judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].timeLimit ||
-      judgeInfo.subtasks[subtaskIndex].timeLimit ||
-      judgeInfo.timeLimit,
-    memoryLimit:
-      judgeInfo.subtasks[subtaskIndex].testcases[testcaseIndex].memoryLimit ||
-      judgeInfo.subtasks[subtaskIndex].memoryLimit ||
-      judgeInfo.memoryLimit
+    interactor: getInteractorMeta(judgeInfo),
+    inputDataHash: await getFileHash(testData[testcase.inputFile]),
+    timeLimit: testcase.timeLimit || judgeInfo.subtasks[subtaskIndex].timeLimit || judgeInfo.timeLimit,
+    memoryLimit: testcase.memoryLimit || judgeInfo.subtasks[subtaskIndex].memoryLimit || judgeInfo.memoryLimit,
+    compileTaskHash: compileResult.compileTaskHash,
+    interactorCompileTaskHash: interactorCompileResult.compileTaskHash
   });
 }
