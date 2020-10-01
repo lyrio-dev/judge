@@ -1,5 +1,4 @@
 import fs from "fs";
-import { join } from "path";
 import crypto from "crypto";
 
 import axios from "axios";
@@ -10,22 +9,23 @@ import LRUCache from "lru-cache";
 import config from "./config";
 import rpc from "./rpc";
 import * as fsNative from "./fsNative";
+import { safelyJoinPath } from "./utils";
 
 const downloadingFiles: Map<string, Promise<void>> = new Map();
 const queue = new Queue(config.maxConcurrentDownloads, Infinity);
 
 async function fileExists(fileUuid: string): Promise<boolean> {
-  return await fsNative.exists(join(config.dataStore, fileUuid));
+  return await fsNative.exists(safelyJoinPath(config.dataStore, fileUuid));
 }
 
 // TODO: check download speed
 async function downloadFile(url: string, fileUuid: string) {
   winston.info(`Downloading file ${fileUuid} from server`);
-  const tempDir = join(config.dataStore, "temp");
+  const tempDir = safelyJoinPath(config.dataStore, "temp");
   await fsNative.ensureDir(tempDir);
 
-  const tempFilename = join(tempDir, fileUuid);
-  const fileStream = fs.createWriteStream(join(tempDir, fileUuid));
+  const tempFilename = safelyJoinPath(tempDir, fileUuid);
+  const fileStream = fs.createWriteStream(safelyJoinPath(tempDir, fileUuid));
 
   const response = await axios({
     url,
@@ -39,7 +39,7 @@ async function downloadFile(url: string, fileUuid: string) {
     fileStream.on("error", reject);
   });
 
-  const persistFilename = join(config.dataStore, fileUuid);
+  const persistFilename = safelyJoinPath(config.dataStore, fileUuid);
   await fs.promises.rename(tempFilename, persistFilename);
 }
 
@@ -82,7 +82,7 @@ export async function ensureFiles(fileUuids: string[]) {
 }
 
 export function getFile(fileUuid: string) {
-  return join(config.dataStore, fileUuid);
+  return safelyJoinPath(config.dataStore, fileUuid);
 }
 
 /**

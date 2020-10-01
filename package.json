@@ -36,7 +36,6 @@
     "toposort": "^2.0.2",
     "unzipper": "^0.10.11",
     "uuid": "^8.1.0",
-    "valid-filename": "^3.1.0",
     "winston": "^3.2.1"
   },
   "devDependencies": {

@@ -5,10 +5,10 @@ import { SandboxStatus } from "simple-sandbox";
 
 import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
-import { startSandbox, joinPath, MappedPath, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
+import { startSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
 import config from "@/config";
-import { readFileOmitted, stringToOmited } from "@/utils";
+import { safelyJoinPath, MappedPath, readFileOmitted, stringToOmited } from "@/utils";
 import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
 import { createPipe, createSharedMemory, Disposer } from "@/posixUtils";
@@ -109,21 +109,21 @@ async function runTestcase(
     inside: SANDBOX_INSIDE_PATH_BINARY
   };
   const workingDirectory = {
-    outside: joinPath(taskWorkingDirectory, "working"),
+    outside: safelyJoinPath(taskWorkingDirectory, "working"),
     inside: SANDBOX_INSIDE_PATH_WORKING
   };
 
-  const tempDirectory = joinPath(taskWorkingDirectory, "temp");
+  const tempDirectory = safelyJoinPath(taskWorkingDirectory, "temp");
 
   await Promise.all([fsNative.ensureDir(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
 
-  const inputFile = joinPath(workingDirectory, uuid());
+  const inputFile = safelyJoinPath(workingDirectory, uuid());
   if (isSample) await fs.promises.writeFile(inputFile.outside, sample.inputData);
   else await fsNative.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
 
-  const userStderrFile = joinPath(workingDirectory, uuid());
+  const userStderrFile = safelyJoinPath(workingDirectory, uuid());
   const userLanguageConfig = getLanguage(task.extraInfo.submissionContent.language);
-  const interactorStderrFile = joinPath(workingDirectory, uuid());
+  const interactorStderrFile = safelyJoinPath(workingDirectory, uuid());
   const interactorLanguageConfig = getLanguage(judgeInfo.interactor.language);
 
   const pipeUserToInteractor = createPipe(disposer);

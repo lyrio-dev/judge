@@ -4,9 +4,9 @@ import { v4 as uuid } from "uuid";
 
 import { SubmissionTask, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
-import { joinPath, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
+import { SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import config from "@/config";
-import { readFileOmitted } from "@/utils";
+import { safelyJoinPath, readFileOmitted } from "@/utils";
 import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
 import { runBuiltinChecker } from "@/checkers/builtin";
@@ -103,23 +103,23 @@ async function runTestcase(
     result.status = TestcaseStatusSubmitAnswer.FileError;
   } else {
     const workingDirectory = {
-      outside: joinPath(taskWorkingDirectory, "working"),
+      outside: safelyJoinPath(taskWorkingDirectory, "working"),
       inside: SANDBOX_INSIDE_PATH_WORKING
     };
 
-    const tempDirectory = joinPath(taskWorkingDirectory, "temp");
+    const tempDirectory = safelyJoinPath(taskWorkingDirectory, "temp");
 
     await Promise.all([fsNative.ensureDir(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
 
-    const inputFile = joinPath(workingDirectory, uuid());
+    const inputFile = safelyJoinPath(workingDirectory, uuid());
     if (testcase.inputFile)
       await fsNative.copy(getFile(task.extraInfo.testData[testcase.inputFile]), inputFile.outside);
     else await fs.promises.writeFile(inputFile.outside, "");
 
-    const answerFile = joinPath(workingDirectory, uuid());
+    const answerFile = safelyJoinPath(workingDirectory, uuid());
     await fsNative.copy(getFile(task.extraInfo.testData[testcase.outputFile]), answerFile.outside);
 
-    const outputFile = joinPath(workingDirectory, uuid());
+    const outputFile = safelyJoinPath(workingDirectory, uuid());
     await fsNative.copy(fileUnzipResult.path, outputFile.outside);
 
     result.userOutput = await readFileOmitted(outputFile.outside, config.limit.dataDisplayForSubmitAnswer);

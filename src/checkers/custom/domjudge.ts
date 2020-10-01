@@ -1,7 +1,6 @@
 import { SandboxStatus } from "simple-sandbox";
 
-import { joinPath } from "@/sandbox";
-import { readFileOmitted } from "@/utils";
+import { safelyJoinPath, readFileOmitted } from "@/utils";
 
 import { CustomChecker } from ".";
 
@@ -31,7 +30,10 @@ export const checker: CustomChecker = {
     }
 
     const MESSAGE_LENGTH_LIMIT = 256;
-    const message = await readFileOmitted(joinPath(workingDirectory.outside, "judgemessage.txt"), MESSAGE_LENGTH_LIMIT);
+    const message = await readFileOmitted(
+      safelyJoinPath(workingDirectory.outside, "judgemessage.txt"),
+      MESSAGE_LENGTH_LIMIT
+    );
 
     if (!(sandboxResult.code in DomjudgeCheckerReturnCode)) {
       return `DOMjudge checker exited with an error return code: ${sandboxResult.code}.\n${message}`;

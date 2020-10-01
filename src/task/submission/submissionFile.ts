@@ -1,6 +1,5 @@
 import fs from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
 
 import Axios from "axios";
 import winston from "winston";
@@ -8,7 +7,7 @@ import winston from "winston";
 import unzipper from "unzipper";
 
 import config from "@/config";
-import { ensureDirectoryEmpty } from "@/utils";
+import { safelyJoinPath, ensureDirectoryEmpty } from "@/utils";
 import * as fsNative from "@/fsNative";
 
 export interface SubmissionFileInfo {
@@ -39,8 +38,8 @@ export class SubmissionFile {
 
   constructor(fileInfo: SubmissionFileInfo) {
     // It's fine to use the uuid as filename since every submission has a different file uuid
-    this.path = join(tmpdir(), fileInfo.uuid);
-    this.unzippedPath = join(tmpdir(), `${fileInfo.uuid}_unzipped`);
+    this.path = safelyJoinPath(tmpdir(), fileInfo.uuid);
+    this.unzippedPath = safelyJoinPath(tmpdir(), `${fileInfo.uuid}_unzipped`);
 
     // eslint-disable-next-line no-async-promise-executor
     this.downloadPromise = new Promise(async (resolve, reject) => {
@@ -88,11 +87,15 @@ export class SubmissionFile {
             // Unzip this file
             writeFilePromises.push(
               new Promise((resolve, reject) => {
-                entry.pipe(fs.createWriteStream(join(this.unzippedPath, entry.path))).on("finish", () => {
-                  result.status[entry.path] = { success: true, path: join(this.unzippedPath, entry.path) };
-                  resolve();
-                });
-                entry.on("error", reject);
+                try {
+                  entry.pipe(fs.createWriteStream(safelyJoinPath(this.unzippedPath, entry.path))).on("finish", () => {
+                    result.status[entry.path] = { success: true, path: safelyJoinPath(this.unzippedPath, entry.path) };
+                    resolve();
+                  });
+                  entry.on("error", reject);
+                } catch (e) {
+                  reject(e);
+                }
               })
             );
 

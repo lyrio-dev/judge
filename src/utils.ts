@@ -1,8 +1,49 @@
 import fs from "fs";
 import crypto from "crypto";
+import { join, normalize } from "path";
 
 import config from "./config";
 import * as fsNative from "./fsNative";
+
+export interface MappedPath {
+  outside: string;
+  inside: string;
+}
+
+// A useful wrapper for path.join()
+
+export function safelyJoinPath(basePath: MappedPath, ...paths: string[]): MappedPath;
+export function safelyJoinPath(basePath: string, ...paths: string[]): string;
+
+/**
+ * Safely join paths. Ensure the joined path won't escape the base path.
+ */
+export function safelyJoinPath(basePath: MappedPath | string, ...paths: string[]) {
+  // eslint-disable-next-line no-shadow
+  function doSafelyJoin(basePath: string, paths: string[]) {
+    // path.normalize ensures the `../`s is on the left side of the result path
+    const childPath = normalize(join(...paths));
+    if (childPath.startsWith(".."))
+      throw new Error(
+        `Invalid path join: ${JSON.stringify(
+          {
+            basePath,
+            paths
+          },
+          null,
+          2
+        )}`
+      );
+
+    return join(basePath, childPath);
+  }
+
+  if (typeof basePath === "string") return doSafelyJoin(basePath, paths);
+  return {
+    inside: doSafelyJoin(basePath.inside, paths),
+    outside: doSafelyJoin(basePath.outside, paths)
+  };
+}
 
 export async function setSandboxUserPermission(path: string, writeAccess: boolean): Promise<void> {
   await fsNative.chmodown(path, {

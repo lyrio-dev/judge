@@ -1,9 +1,10 @@
 import { SandboxResult } from "simple-sandbox";
 
-import { MappedPath, runSandbox, SANDBOX_INSIDE_PATH_BINARY } from "@/sandbox";
+import { runSandbox, SANDBOX_INSIDE_PATH_BINARY } from "@/sandbox";
 import { CompileResultSuccess } from "@/compile";
 import getLanguage from "@/languages";
 import { ConfigurationError } from "@/error";
+import { MappedPath } from "@/utils";
 
 import { CheckerResult, CheckerTypeCustom } from "..";
 

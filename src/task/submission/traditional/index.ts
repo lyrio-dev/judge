@@ -5,10 +5,10 @@ import { SandboxStatus } from "simple-sandbox";
 
 import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
-import { runSandbox, joinPath, MappedPath, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
+import { runSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
 import config from "@/config";
-import { readFileOmitted, stringToOmited } from "@/utils";
+import { safelyJoinPath, MappedPath, readFileOmitted, stringToOmited } from "@/utils";
 import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
 import { runBuiltinChecker } from "@/checkers/builtin";
@@ -109,15 +109,15 @@ async function runTestcase(
     inside: SANDBOX_INSIDE_PATH_BINARY
   };
   const workingDirectory = {
-    outside: joinPath(taskWorkingDirectory, "working"),
+    outside: safelyJoinPath(taskWorkingDirectory, "working"),
     inside: SANDBOX_INSIDE_PATH_WORKING
   };
 
-  const tempDirectory = joinPath(taskWorkingDirectory, "temp");
+  const tempDirectory = safelyJoinPath(taskWorkingDirectory, "temp");
 
   await Promise.all([fsNative.ensureDirSync(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
 
-  const inputFile = joinPath(workingDirectory, judgeInfo.fileIo ? judgeInfo.fileIo.inputFilename : uuid());
+  const inputFile = safelyJoinPath(workingDirectory, judgeInfo.fileIo ? judgeInfo.fileIo.inputFilename : uuid());
 
   const writeInputFile = () => {
     if (isSample) return fs.promises.writeFile(inputFile.outside, sample.inputData);
@@ -125,8 +125,8 @@ async function runTestcase(
   };
   await writeInputFile();
 
-  const outputFile = joinPath(workingDirectory, judgeInfo.fileIo ? judgeInfo.fileIo.outputFilename : uuid());
-  const stderrFile = joinPath(workingDirectory, uuid());
+  const outputFile = safelyJoinPath(workingDirectory, judgeInfo.fileIo ? judgeInfo.fileIo.outputFilename : uuid());
+  const stderrFile = safelyJoinPath(workingDirectory, uuid());
 
   const languageConfig = getLanguage(task.extraInfo.submissionContent.language);
   const sandboxResult = await runSandbox({
@@ -192,7 +192,7 @@ async function runTestcase(
     // The input file may be modified by user's program
     await writeInputFile();
 
-    const answerFile = joinPath(workingDirectory, uuid());
+    const answerFile = safelyJoinPath(workingDirectory, uuid());
 
     if (isSample) await fs.promises.writeFile(answerFile.outside, sample.outputData);
     else await fsNative.copy(getFile(task.extraInfo.testData[testcase.outputFile]), answerFile.outside);

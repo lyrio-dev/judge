@@ -3,9 +3,7 @@ import fs from "fs";
 import { v4 as uuid } from "uuid";
 import { SandboxStatus } from "simple-sandbox";
 
-import { joinPath } from "@/sandbox";
-
-import { readFileLimited, readFileOmitted } from "@/utils";
+import { safelyJoinPath, readFileLimited, readFileOmitted } from "@/utils";
 
 import { CustomChecker } from ".";
 
@@ -19,14 +17,14 @@ export const checker: CustomChecker = {
     workingDirectory,
     runSandboxForCustomChecker
   ) {
-    const stdoutFile = joinPath(workingDirectory, uuid());
-    const stderrFile = joinPath(workingDirectory, uuid());
+    const stdoutFile = safelyJoinPath(workingDirectory, uuid());
+    const stderrFile = safelyJoinPath(workingDirectory, uuid());
 
     await Promise.all([
-      fs.promises.rename(outputFile.outside, joinPath(workingDirectory.outside, "user_out")),
-      fs.promises.rename(inputFile.outside, joinPath(workingDirectory.outside, "input")),
-      fs.promises.rename(answerFile.outside, joinPath(workingDirectory.outside, "answer")),
-      fs.promises.writeFile(joinPath(workingDirectory.outside, "code"), code || "")
+      fs.promises.rename(outputFile.outside, safelyJoinPath(workingDirectory.outside, "user_out")),
+      fs.promises.rename(inputFile.outside, safelyJoinPath(workingDirectory.outside, "input")),
+      fs.promises.rename(answerFile.outside, safelyJoinPath(workingDirectory.outside, "answer")),
+      fs.promises.writeFile(safelyJoinPath(workingDirectory.outside, "code"), code || "")
     ]);
 
     const sandboxResult = await runSandboxForCustomChecker(null, stdoutFile.inside, stderrFile.inside);

@@ -1,8 +1,7 @@
 import { v4 as uuid } from "uuid";
 import { SandboxStatus } from "simple-sandbox";
 
-import { joinPath } from "@/sandbox";
-import { readFileLimited, readFileOmitted } from "@/utils";
+import { safelyJoinPath, readFileLimited, readFileOmitted } from "@/utils";
 
 import { CustomChecker } from ".";
 
@@ -16,8 +15,8 @@ export const checker: CustomChecker = {
     workingDirectory,
     runSandboxForCustomChecker
   ) {
-    const scoreFile = joinPath(workingDirectory, uuid());
-    const messageFile = joinPath(workingDirectory, uuid());
+    const scoreFile = safelyJoinPath(workingDirectory, uuid());
+    const messageFile = safelyJoinPath(workingDirectory, uuid());
 
     const sandboxResult = await runSandboxForCustomChecker(null, null, null, [
       inputFile.inside,

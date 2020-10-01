@@ -7,15 +7,8 @@ import winston from "winston";
 import { v4 as uuid } from "uuid";
 
 import getLanguage, { LanguageConfig } from "./languages";
-import { ensureDirectoryEmpty, readFileOmitted } from "./utils";
-import {
-  ExecuteParameters,
-  runSandbox,
-  SANDBOX_INSIDE_PATH_SOURCE,
-  SANDBOX_INSIDE_PATH_BINARY,
-  MappedPath,
-  joinPath
-} from "./sandbox";
+import { MappedPath, safelyJoinPath, ensureDirectoryEmpty, readFileOmitted } from "./utils";
+import { ExecuteParameters, runSandbox, SANDBOX_INSIDE_PATH_SOURCE, SANDBOX_INSIDE_PATH_BINARY } from "./sandbox";
 import config from "./config";
 import { runTaskQueued } from "./taskQueue";
 import { getFile, getFileHash } from "./file";
@@ -123,7 +116,7 @@ class CompileResultCache {
   public async set(compileTaskHash: string, result: CompileResultSuccess): Promise<CompileResultSuccess> {
     if (this.lruCache.has(compileTaskHash)) return this.lruCache.get(compileTaskHash).reference();
 
-    const newCompileResult = await result.copyTo(joinPath(config.binaryCacheStore, uuid()));
+    const newCompileResult = await result.copyTo(safelyJoinPath(config.binaryCacheStore, uuid()));
     newCompileResult.reference();
     this.lruCache.set(compileTaskHash, newCompileResult);
     return newCompileResult.reference();
@@ -194,15 +187,15 @@ async function doCompile(
   const { sourceFilename, binarySizeLimit } = languageConfig.getMetaOptions(compileTask.compileAndRunOptions);
 
   const sourceDirectory: MappedPath = {
-    outside: joinPath(taskWorkingDirectory, "source"),
+    outside: safelyJoinPath(taskWorkingDirectory, "source"),
     inside: SANDBOX_INSIDE_PATH_SOURCE
   };
   const binaryDirectory: MappedPath = {
-    outside: joinPath(taskWorkingDirectory, "working"),
+    outside: safelyJoinPath(taskWorkingDirectory, "working"),
     inside: SANDBOX_INSIDE_PATH_BINARY
   };
 
-  const tempDirectory = joinPath(taskWorkingDirectory, "temp");
+  const tempDirectory = safelyJoinPath(taskWorkingDirectory, "temp");
 
   await Promise.all([
     ensureDirectoryEmpty(sourceDirectory.outside),
@@ -212,11 +205,11 @@ async function doCompile(
 
   await Promise.all(
     Object.entries(compileTask.extraSourceFiles || {}).map(([dst, src]) =>
-      fs.promises.copyFile(getFile(src), joinPath(sourceDirectory.outside, dst))
+      fs.promises.copyFile(getFile(src), safelyJoinPath(sourceDirectory.outside, dst))
     )
   );
 
-  const sourceFile = joinPath(sourceDirectory, sourceFilename);
+  const sourceFile = safelyJoinPath(sourceDirectory, sourceFilename);
   await fs.promises.writeFile(sourceFile.outside, compileTask.code);
 
   const executeParameters = languageConfig.compile(
@@ -240,7 +233,7 @@ async function doCompile(
     ]
   });
 
-  const messageFile = joinPath(binaryDirectory, executeParameters.messageFile);
+  const messageFile = safelyJoinPath(binaryDirectory, executeParameters.messageFile);
   const message = (await readFileOmitted(messageFile.outside, config.limit.compilerMessage)) || "";
   await fsNative.remove(messageFile.outside);
 
