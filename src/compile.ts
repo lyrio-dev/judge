@@ -7,7 +7,8 @@ import winston from "winston";
 import { v4 as uuid } from "uuid";
 
 import getLanguage, { LanguageConfig } from "./languages";
-import { MappedPath, safelyJoinPath, ensureDirectoryEmpty, readFileOmitted } from "./utils";
+import { MappedPath, safelyJoinPath, ensureDirectoryEmpty } from "./utils";
+import { readFileOmitted, OmittableString, prependOmittableString } from "./omittableString";
 import { ExecuteParameters, runSandbox, SANDBOX_INSIDE_PATH_SOURCE, SANDBOX_INSIDE_PATH_BINARY } from "./sandbox";
 import config from "./config";
 import { runTaskQueued } from "./taskQueue";
@@ -47,7 +48,7 @@ async function hashCompileTask(compileTask: CompileTask): Promise<string> {
 export interface CompileResult {
   compileTaskHash: string;
   success: boolean;
-  message: string;
+  message: OmittableString;
 }
 
 // These class implements reference count to prevent a compile result being deleted
@@ -57,7 +58,7 @@ export class CompileResultSuccess implements CompileResult {
 
   constructor(
     public readonly compileTaskHash: string,
-    public readonly message: string,
+    public readonly message: OmittableString,
     public readonly binaryDirectory: string,
     public readonly binaryDirectorySize: number
   ) {}
@@ -244,13 +245,21 @@ async function doCompile(
         return {
           compileTaskHash,
           success: false,
-          message: `The source code compiled to ${binaryDirectorySize} bytes, exceeding the size limit.\n\n${message}`.trim()
+          message: prependOmittableString(
+            `The source code compiled to ${binaryDirectorySize} bytes, exceeding the size limit.\n\n`,
+            message,
+            true
+          )
         };
       } else if (binaryDirectorySize > config.binaryCacheMaxSize) {
         return {
           compileTaskHash,
           success: false,
-          message: `The source code compiled to ${binaryDirectorySize} bytes, exceeding the limit of cache storage.\n\n${message}`.trim()
+          message: prependOmittableString(
+            `The source code compiled to ${binaryDirectorySize} bytes, exceeding the limit of cache storage.\n\n`,
+            message,
+            true
+          )
         };
       } else {
         // We must done copying it to the cache before returning
@@ -271,7 +280,11 @@ async function doCompile(
     return {
       compileTaskHash,
       success: false,
-      message: `A ${SandboxStatus[sandboxResult.status]} encountered while compiling the code.\n\n${message}`.trim()
+      message: prependOmittableString(
+        `A ${SandboxStatus[sandboxResult.status]} encountered while compiling the code.\n\n`,
+        message,
+        true
+      )
     };
   }
 }

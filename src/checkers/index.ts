@@ -1,3 +1,5 @@
+import { OmittableString, omittableStringToString, prependOmittableString } from "@/omittableString";
+
 // integers: check the equivalent of each integer in user's output and answer
 export interface CheckerTypeIntegers {
   type: "integers";
@@ -46,48 +48,49 @@ export interface CheckerResult {
    * `score == null` means JudgementFailed.
    */
   score?: number;
-  checkerMessage?: string;
+  checkerMessage?: OmittableString;
 }
 
-export function parseTestlibMessage(message: string): CheckerResult | string {
+export function parseTestlibMessage(message: OmittableString): CheckerResult | OmittableString {
   const friendlyMessage = message || "(empty)";
+  const messagePlain = omittableStringToString(message);
 
-  if (message.startsWith("ok")) {
+  if (messagePlain.startsWith("ok")) {
     return {
       score: 100,
       checkerMessage: message
     };
-  } else if (message.startsWith("wrong answer") || message.startsWith("wrong output format")) {
+  } else if (messagePlain.startsWith("wrong answer") || messagePlain.startsWith("wrong output format")) {
     return {
       score: 0,
       checkerMessage: message
     };
-  } else if (message.startsWith("points")) {
-    const match = message.match(/^points (\d+)/);
-    if (!match) return `Couldn't parse testlib's message: ${friendlyMessage}`;
+  } else if (messagePlain.startsWith("points")) {
+    const match = messagePlain.match(/^points (\d+)/);
+    if (!match) return prependOmittableString("Couldn't parse testlib's message: ", friendlyMessage);
     const score = parseInt(match[1], 10);
     if (!(score >= 0 && score <= 100))
-      return `Got invalid score ${match[1]} from testlib's message: ${friendlyMessage}`;
+      return prependOmittableString(`Got invalid score ${match[1]} from testlib's message: `, friendlyMessage);
     return {
       score,
       checkerMessage: message
     };
-  } else if (message.startsWith("partially correct")) {
-    const match = message.match(/^partially correct \((\d+)\)/);
-    if (!match) return `Couldn't parse testlib's message: ${friendlyMessage}`;
+  } else if (messagePlain.startsWith("partially correct")) {
+    const match = messagePlain.match(/^partially correct \((\d+)\)/);
+    if (!match) return prependOmittableString("Couldn't parse testlib's message: ", friendlyMessage);
     const score = parseInt(match[1], 10);
     if (!(score >= 0 && score <= 200))
-      return `Got invalid score ${match[1]} from testlib's message: ${friendlyMessage}`;
+      return prependOmittableString(`Got invalid score ${match[1]} from testlib's message: `, friendlyMessage);
     return {
       score: Math.floor(score / 2),
       checkerMessage: message
     };
-  } else if (message.startsWith("FAIL")) {
+  } else if (messagePlain.startsWith("FAIL")) {
     return {
       checkerMessage: message
     };
   } else {
-    return `Couldn't parse testlib's message: ${friendlyMessage}`;
+    return prependOmittableString("Couldn't parse testlib's message: ", friendlyMessage);
   }
 }
 

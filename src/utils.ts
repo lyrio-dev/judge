@@ -82,37 +82,6 @@ export async function readFileLimited(filePath: string, lengthLimit: number): Pr
   }
 }
 
-/**
- * Read a file's first at most `lengthLimit` bytes, and add `\n<n bytes omitted>` message if there're
- * more bytes remaining.
- */
-export async function readFileOmitted(filePath: string, lengthLimit: number): Promise<string> {
-  let file: fs.promises.FileHandle;
-  try {
-    file = await fs.promises.open(filePath, "r");
-    const actualSize = (await file.stat()).size;
-    const buf = Buffer.allocUnsafe(Math.min(actualSize, lengthLimit));
-    const { bytesRead } = await file.read(buf, 0, buf.length, 0);
-    let ret = buf.toString("utf8", 0, bytesRead);
-    if (bytesRead < actualSize) {
-      const omitted = actualSize - bytesRead;
-      ret += `\n<${omitted} byte${omitted !== 1 ? "s" : ""} omitted>`;
-    }
-    return ret;
-  } catch (e) {
-    return "";
-  } finally {
-    await file.close();
-  }
-}
-
-export function stringToOmited(str: string, lengthLimit: number) {
-  if (str.length <= lengthLimit) return str;
-
-  const omitted = str.length - lengthLimit;
-  return `${str.substr(0, lengthLimit)}\n<${omitted} byte${omitted !== 1 ? "s" : ""} omitted>`;
-}
-
 export function hashData(data: string): Promise<string> {
   const hash = crypto.createHash("sha256");
 

@@ -3,6 +3,7 @@ import winston from "winston";
 import { Task } from "@/task";
 import { ensureFiles } from "@/file";
 import { ConfigurationError, CanceledError } from "@/error";
+import { OmittableString } from "@/omittableString";
 
 import { SubmissionFile, SubmissionFileInfo } from "./submissionFile";
 
@@ -76,10 +77,10 @@ export interface SubmissionProgress<TestcaseResult> {
 
   compile?: {
     success: boolean;
-    message: string;
+    message: OmittableString;
   };
 
-  systemMessage?: string;
+  systemMessage?: OmittableString;
 
   // testcaseHash = hash(IF, OF, TL, ML) for traditional
   //                hash(ID, OD, TL, ML) for samples
@@ -98,7 +99,7 @@ export interface SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult, Ex
   extends Task<SubmissionExtraInfo<JudgeInfo, SubmissionContent>, SubmissionProgress<TestcaseResult>> {
   events: {
     compiling(): void;
-    compiled(compile: { success: boolean; message: string }): void;
+    compiled(compile: { success: boolean; message: OmittableString }): void;
     startedRunning(samplesCount: number, subtaskFullScores: number[]): void;
     sampleTestcaseWillEnqueue(
       sampleId: number,
@@ -323,7 +324,7 @@ export default async function onSubmission<JudgeInfo, SubmissionContent, Testcas
     task.reportProgressRaw({
       progressType: SubmissionProgressType.Finished,
       status: isConfigurationError ? SubmissionStatus.ConfigurationError : SubmissionStatus.SystemError,
-      systemMessage: isConfigurationError ? e.message : e.stack
+      systemMessage: isConfigurationError ? e.originalMessage : e.stack
     });
     if (!isConfigurationError) winston.error(`Error on submission task ${task.taskId}, ${e.stack}`);
   } finally {

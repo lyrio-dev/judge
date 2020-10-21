@@ -1,6 +1,7 @@
 import { SandboxStatus } from "simple-sandbox";
 
-import { safelyJoinPath, readFileOmitted } from "@/utils";
+import { safelyJoinPath } from "@/utils";
+import { prependOmittableString, readFileOmitted } from "@/omittableString";
 
 import { CustomChecker } from ".";
 
@@ -33,11 +34,16 @@ export const checker: CustomChecker = {
 
     const MESSAGE_LENGTH_LIMIT = 256;
     const message = await readFileOmitted(messageFile.outside, MESSAGE_LENGTH_LIMIT);
+    const friendlyMessage = message || "(empty)";
 
     if (!(sandboxResult.code in QduOjCheckerReturnCode)) {
-      return `QDUOJ checker exited with an unrecognized return code: ${sandboxResult.code}.\n${message}`;
+      return prependOmittableString(
+        `QDUOJ checker exited with an unrecognized return code: ${sandboxResult.code}.\n\n`,
+        friendlyMessage,
+        true
+      );
     } else if (sandboxResult.code === QduOjCheckerReturnCode.ERROR) {
-      return `QDUOJ checker exited with error: ${message || "(empty)"}`;
+      return prependOmittableString(`QDUOJ checker exited with error.\n\n`, friendlyMessage, true);
     }
 
     return {

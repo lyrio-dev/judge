@@ -1,6 +1,7 @@
 import { SandboxStatus } from "simple-sandbox";
 
-import { safelyJoinPath, readFileOmitted } from "@/utils";
+import { safelyJoinPath } from "@/utils";
+import { prependOmittableString, readFileOmitted } from "@/omittableString";
 
 import { CustomChecker } from ".";
 
@@ -36,7 +37,11 @@ export const checker: CustomChecker = {
     );
 
     if (!(sandboxResult.code in DomjudgeCheckerReturnCode)) {
-      return `DOMjudge checker exited with an error return code: ${sandboxResult.code}.\n${message}`;
+      return prependOmittableString(
+        `DOMjudge checker exited with an error return code: ${sandboxResult.code}.\n`,
+        message,
+        true
+      );
     }
 
     return {

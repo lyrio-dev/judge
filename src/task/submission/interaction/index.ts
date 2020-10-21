@@ -8,7 +8,14 @@ import { compile, CompileResultSuccess } from "@/compile";
 import { startSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
 import config from "@/config";
-import { safelyJoinPath, MappedPath, readFileOmitted, stringToOmited } from "@/utils";
+import { safelyJoinPath, MappedPath } from "@/utils";
+import {
+  readFileOmitted,
+  stringToOmited,
+  OmittableString,
+  prependOmittableString,
+  isOmittableString
+} from "@/omittableString";
 import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
 import { createPipe, createSharedMemory, Disposer } from "@/posixUtils";
@@ -45,10 +52,10 @@ export interface TestcaseResultInteraction {
   score: number;
   time?: number;
   memory?: number;
-  input?: string;
-  userError?: string;
-  interactorMessage?: string;
-  systemMessage?: string;
+  input?: OmittableString;
+  userError?: OmittableString;
+  interactorMessage?: OmittableString;
+  systemMessage?: OmittableString;
 }
 
 export interface SubmissionContentInteraction {
@@ -240,7 +247,7 @@ async function runTestcase(
   // Interactor and user program exited normally
   if (!result.status) {
     const interactorResult = parseTestlibMessage(interactorMessage);
-    if (typeof interactorResult === "string") {
+    if (isOmittableString(interactorResult)) {
       result.status = TestcaseStatusInteraction.JudgementFailed;
       result.score = 0;
       result.systemMessage = interactorResult;
@@ -283,7 +290,9 @@ export async function runTask(
   });
 
   if (!(interactorCompileResult instanceof CompileResultSuccess)) {
-    throw new ConfigurationError(`Failed to compile interactor:\n\n${interactorCompileResult.message}`);
+    throw new ConfigurationError(
+      prependOmittableString("Failed to compile interactor:\n\n", interactorCompileResult.message, true)
+    );
   }
 
   const compileResult = await compile({

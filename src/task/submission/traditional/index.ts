@@ -8,7 +8,14 @@ import { compile, CompileResultSuccess } from "@/compile";
 import { runSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
 import config from "@/config";
-import { safelyJoinPath, MappedPath, readFileOmitted, stringToOmited } from "@/utils";
+import { safelyJoinPath, MappedPath } from "@/utils";
+import {
+  isOmittableString,
+  OmittableString,
+  prependOmittableString,
+  readFileOmitted,
+  stringToOmited
+} from "@/omittableString";
 import { getFile } from "@/file";
 import { ConfigurationError } from "@/error";
 import { runBuiltinChecker } from "@/checkers/builtin";
@@ -47,12 +54,12 @@ export interface TestcaseResultTraditional {
   score: number;
   time?: number;
   memory?: number;
-  input?: string;
-  output?: string;
-  userOutput?: string;
-  userError?: string;
-  checkerMessage?: string;
-  systemMessage?: string;
+  input?: OmittableString;
+  output?: OmittableString;
+  userOutput?: OmittableString;
+  userError?: OmittableString;
+  checkerMessage?: OmittableString;
+  systemMessage?: OmittableString;
 }
 
 export interface SubmissionContentTraditional {
@@ -215,7 +222,7 @@ async function runTestcase(
         : await runBuiltinChecker(outputFile.outside, answerFile.outside, judgeInfo.checker);
 
     // Return string means checker error
-    if (typeof checkerResult === "string") {
+    if (isOmittableString(checkerResult)) {
       result.status = TestcaseStatusTraditional.JudgementFailed;
       result.score = 0;
       result.systemMessage = checkerResult;
@@ -262,7 +269,9 @@ export async function runTask(
     });
 
     if (!(compileResult instanceof CompileResultSuccess)) {
-      throw new ConfigurationError(`Failed to compile custom checker:\n\n${compileResult.message}`);
+      throw new ConfigurationError(
+        prependOmittableString("Failed to compile custom checker:\n\n", compileResult.message, true)
+      );
     }
 
     customCheckerCompileResult = compileResult;

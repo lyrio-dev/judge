@@ -5,6 +5,7 @@ import { CompileResultSuccess } from "@/compile";
 import getLanguage from "@/languages";
 import { ConfigurationError } from "@/error";
 import { MappedPath } from "@/utils";
+import { OmittableString } from "@/omittableString";
 
 import { CheckerResult, CheckerTypeCustom } from "..";
 
@@ -28,7 +29,7 @@ export interface CustomChecker {
       stderr: string,
       parameters?: string[]
     ) => Promise<SandboxResult>
-  ): Promise<CheckerResult | string>;
+  ): Promise<CheckerResult | OmittableString>;
 }
 
 /* eslint-disable @typescript-eslint/no-var-requires */
