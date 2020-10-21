@@ -3029,10 +3029,10 @@ signal-exit@^3.0.2:
   resolved "https://registry.yarnpkg.com/signal-exit/-/signal-exit-3.0.2.tgz#b5fdc08f1287ea1178628e415e25132b73646c6d"
   integrity sha1-tf3AjxKH6hF4Yo5BXiUTK3NkbG0=
 
-simple-sandbox@^0.3.13:
-  version "0.3.13"
-  resolved "https://registry.yarnpkg.com/simple-sandbox/-/simple-sandbox-0.3.13.tgz#bb92d5eff2a0885ed441ed8a239d42b29a9b8010"
-  integrity sha512-FazAhJsUmkLZJofNVR5yxB9KBuE1NJtwjrD5aP9EkJqhiWqv/0xnX+HispksHj4Nq8zjoIvVipcX5M7rAjo+xA==
+simple-sandbox@^0.3.14:
+  version "0.3.14"
+  resolved "https://registry.yarnpkg.com/simple-sandbox/-/simple-sandbox-0.3.14.tgz#c704a3a6589e394fbb569c39ef00f4fd0bf21cce"
+  integrity sha512-vmn0Bxu2+rgY7MnVN9YLLYmQdxanQ00qdMBTC0k9CnZDjjC3pCZDbbBXqeZjaDoKQLeFq6Ayqst/WkOHzUwK+g==
   dependencies:
     bindings "^1.5.0"
     cmake-js "^6.0.0"

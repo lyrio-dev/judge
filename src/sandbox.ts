@@ -1,7 +1,6 @@
 import fs from "fs";
 
 import * as Sandbox from "simple-sandbox";
-import { v4 as uuid } from "uuid";
 
 import config from "./config";
 import { MappedPath, safelyJoinPath, setSandboxUserPermission } from "./utils";
@@ -112,7 +111,7 @@ export async function startSandbox({
     stdout: typeof parameters.stdout === "object" ? (parameters.stdout || {}).fd : parameters.stdout,
     stderr: typeof parameters.stderr === "object" ? (parameters.stderr || {}).fd : parameters.stderr,
     user: config.sandbox.user,
-    cgroup: uuid(),
+    cgroup: "",
     parameters: [executable, ...(parameters.parameters || []).filter(x => x != null)],
     environments: config.sandbox.environments.concat(parameters.environments || []),
     workingDirectory: parameters.workingDirectory,
