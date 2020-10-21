@@ -11,11 +11,13 @@ import * as Traditional from "./traditional";
 import * as Interaction from "./interaction";
 import * as SubmitAnswer from "./submit-answer";
 
+/* eslint-disable no-shadow */
 enum ProblemType {
-  TRADITIONAL = "TRADITIONAL",
-  INTERACTION = "INTERACTION",
-  SUBMIT_ANSWER = "SUBMIT_ANSWER"
+  Traditional = "Traditional",
+  Interaction = "Interaction",
+  SubmitAnswer = "SubmitAnswer"
 }
+/* eslint-enable no-shadow */
 
 export interface ProblemSample {
   inputData: string;
@@ -144,9 +146,9 @@ export interface SubmissionHandler<JudgeInfo, SubmissionContent, TestcaseResult,
 }
 
 const problemTypeHandlers: Record<ProblemType, SubmissionHandler<unknown, unknown, unknown, unknown>> = {
-  [ProblemType.TRADITIONAL]: Traditional,
-  [ProblemType.INTERACTION]: Interaction,
-  [ProblemType.SUBMIT_ANSWER]: SubmitAnswer
+  [ProblemType.Traditional]: Traditional,
+  [ProblemType.Interaction]: Interaction,
+  [ProblemType.SubmitAnswer]: SubmitAnswer
 };
 
 // Common problem types' judge info has a "subtasks" array below.
