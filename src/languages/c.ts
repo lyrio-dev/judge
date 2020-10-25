@@ -26,6 +26,7 @@ export const languageConfig: LanguageConfig<CompileAndRunOptionsC> = {
       "-Wextra",
       "-Wno-unused-result",
       `-m${compileAndRunOptions.m}`,
+      "-march=native",
       sourcePathInside
     ],
     time: 10000,

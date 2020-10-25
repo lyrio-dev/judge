@@ -27,6 +27,7 @@ export const languageConfig: LanguageConfig<CompileAndRunOptionsCpp> = {
       "-Wno-unused-result",
       compileAndRunOptions.compiler === "clang++" && compileAndRunOptions.m === "64" ? "-stdlib=libc++" : null,
       `-m${compileAndRunOptions.m}`,
+      "-march=native",
       sourcePathInside
     ],
     time: 10000,
