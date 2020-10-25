@@ -82,8 +82,8 @@ taskWorkingDirectories:
   - /root/judge/2
   - /root/judge/3
 sandbox:
-  // The sandbox rootfs (see the "Sandbox Rootfs" section of README)
-  rootfs: /opt/sandbox-test/rootfs
+  // The sandbox rootfs (see the "Sandbox RootFS" section of README)
+  rootfs: /opt/rootfs-ng
   // The user to use in the sandbox
   // Do NOT modify it unless you know what you're doing
   user: sandbox
@@ -127,7 +127,7 @@ If you run multiple judge clients on the same machine for some testing purpose, 
 
 NEVER run multiple judge clients with the same `key` -- thay will conflit and none of them can consume tasks at all.
 
-# Sandbox Rootfs
+# Sandbox RootFS
 The use of sandbox rootfs is aimed to isolate the access of user programs (and compiles) from the main system, to prevent some sensitive information to be stolen by user.
 
-Refer to [sandbox-ng](https://github.com/syzoj/sandbox-rootfs-ng) for more information.
+You may download the official [sandbox-rootfs-ng](https://github.com/syzoj/sandbox-rootfs-ng) directly from release or bootstrap it by yourself. You can also build a custom rootfs with your favorite disto.

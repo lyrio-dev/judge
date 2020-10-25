@@ -11,7 +11,7 @@ taskWorkingDirectories:
   - /root/judge/2
   - /root/judge/3
 sandbox:
-  rootfs: /opt/sandbox-test/rootfs
+  rootfs: /opt/rootfs-ng
   user: sandbox
   hostname: null
   environments:
