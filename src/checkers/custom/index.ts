@@ -67,7 +67,7 @@ export async function runCustomChecker(
   answerFile: MappedPath,
   code: string,
   workingDirectory: MappedPath,
-  tempDirectory: string
+  tempDirectoryOutside: string
 ) {
   return await customCheckerInterfaces[checker.interface].runChecker(
     checker,
@@ -77,25 +77,23 @@ export async function runCustomChecker(
     code,
     workingDirectory,
     async (stdin, stdout, stderr, parameters) =>
-      await runSandbox({
-        taskId,
-        parameters: {
-          ...getLanguage(checker.language).run(
-            SANDBOX_INSIDE_PATH_BINARY,
-            workingDirectory.inside,
-            checker.compileAndRunOptions,
-            timeLimit,
-            memoryLimit,
-            stdin,
-            stdout,
-            stderr,
-            parameters
-          ),
+      await runSandbox(taskId, {
+        ...getLanguage(checker.language).run({
+          binaryDirectoryInside: SANDBOX_INSIDE_PATH_BINARY,
+          workingDirectoryInside: workingDirectory.inside,
+          compileAndRunOptions: checker.compileAndRunOptions,
           time: timeLimit,
-          memory: memoryLimit * 1024 * 1024,
-          workingDirectory: workingDirectory.inside
-        },
-        tempDirectory,
+          memory: memoryLimit,
+          stdinFile: stdin,
+          stdoutFile: stdout,
+          stderrFile: stderr,
+          parameters,
+          compileResultExtraInfo: checkerCompileResult.extraInfo
+        }),
+        time: timeLimit,
+        memory: memoryLimit * 1024 * 1024,
+        workingDirectory: workingDirectory.inside,
+        tempDirectoryOutside,
         extraMounts: [
           {
             mappedPath: {

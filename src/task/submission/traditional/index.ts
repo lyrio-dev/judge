@@ -120,9 +120,9 @@ async function runTestcase(
     inside: SANDBOX_INSIDE_PATH_WORKING
   };
 
-  const tempDirectory = safelyJoinPath(taskWorkingDirectory, "temp");
+  const tempDirectoryOutside = safelyJoinPath(taskWorkingDirectory, "temp");
 
-  await Promise.all([fsNative.ensureDirSync(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
+  await Promise.all([fsNative.ensureDirSync(workingDirectory.outside), fsNative.ensureDir(tempDirectoryOutside)]);
 
   const inputFile = safelyJoinPath(workingDirectory, judgeInfo.fileIo ? judgeInfo.fileIo.inputFilename : uuid());
 
@@ -136,24 +136,23 @@ async function runTestcase(
   const stderrFile = safelyJoinPath(workingDirectory, uuid());
 
   const languageConfig = getLanguage(task.extraInfo.submissionContent.language);
-  const sandboxResult = await runSandbox({
-    taskId: task.taskId,
-    parameters: {
-      ...languageConfig.run(
-        binaryDirectory.inside,
-        workingDirectory.inside,
-        task.extraInfo.submissionContent.compileAndRunOptions,
-        timeLimit,
-        memoryLimit,
-        judgeInfo.fileIo ? null : inputFile.inside,
-        judgeInfo.fileIo ? null : outputFile.inside,
-        stderrFile.inside
-      ),
+  const sandboxResult = await runSandbox(task.taskId, {
+    ...languageConfig.run({
+      binaryDirectoryInside: binaryDirectory.inside,
+      workingDirectoryInside: workingDirectory.inside,
+      compileAndRunOptions: task.extraInfo.submissionContent.compileAndRunOptions,
       time: timeLimit,
-      memory: memoryLimit * 1024 * 1024,
-      workingDirectory: workingDirectory.inside
-    },
-    tempDirectory,
+      memory: memoryLimit,
+      stdinFile: judgeInfo.fileIo ? null : inputFile.inside,
+      stdoutFile: judgeInfo.fileIo ? null : outputFile.inside,
+      stderrFile: stderrFile.inside,
+      parameters: [],
+      compileResultExtraInfo: compileResult.extraInfo
+    }),
+    time: timeLimit,
+    memory: memoryLimit * 1024 * 1024,
+    workingDirectory: workingDirectory.inside,
+    tempDirectoryOutside,
     extraMounts: [
       {
         mappedPath: binaryDirectory,
@@ -217,7 +216,7 @@ async function runTestcase(
             answerFile,
             task.extraInfo.submissionContent.code,
             workingDirectory,
-            tempDirectory
+            tempDirectoryOutside
           )
         : await runBuiltinChecker(outputFile.outside, answerFile.outside, judgeInfo.checker);
 

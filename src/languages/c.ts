@@ -1,20 +1,20 @@
 import { LanguageConfig } from ".";
 
-interface CompileAndRunOptionsCpp {
+interface CompileAndRunOptionsC {
   compiler: string;
   std: string;
   O: string;
   m: string;
 }
 
-export const languageConfig: LanguageConfig<CompileAndRunOptionsCpp> = {
-  name: "cpp",
+export const languageConfig: LanguageConfig<CompileAndRunOptionsC> = {
+  name: "c",
   getMetaOptions: () => ({
-    sourceFilename: "main.cpp",
+    sourceFilename: "main.c",
     binarySizeLimit: 5 * 1024 * 1024 // 5 MiB, enough unless someone initlizes globals badly
   }),
   compile: ({ sourcePathInside, binaryDirectoryInside, compileAndRunOptions }) => ({
-    executable: compileAndRunOptions.compiler === "g++" ? "g++" : "clang++",
+    executable: compileAndRunOptions.compiler === "gcc" ? "gcc" : "clang",
     parameters: [
       "-o",
       `${binaryDirectoryInside}/a.out`,
@@ -25,7 +25,6 @@ export const languageConfig: LanguageConfig<CompileAndRunOptionsCpp> = {
       "-Wall",
       "-Wextra",
       "-Wno-unused-result",
-      compileAndRunOptions.compiler === "clang++" && compileAndRunOptions.m === "64" ? "-stdlib=libc++" : null,
       `-m${compileAndRunOptions.m}`,
       sourcePathInside
     ],

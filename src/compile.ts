@@ -9,16 +9,20 @@ import { v4 as uuid } from "uuid";
 import getLanguage, { LanguageConfig } from "./languages";
 import { MappedPath, safelyJoinPath, ensureDirectoryEmpty } from "./utils";
 import { readFileOmitted, OmittableString, prependOmittableString } from "./omittableString";
-import { ExecuteParameters, runSandbox, SANDBOX_INSIDE_PATH_SOURCE, SANDBOX_INSIDE_PATH_BINARY } from "./sandbox";
+import {
+  SandboxConfigWithoutMountInfo,
+  runSandbox,
+  SANDBOX_INSIDE_PATH_SOURCE,
+  SANDBOX_INSIDE_PATH_BINARY
+} from "./sandbox";
 import config from "./config";
 import { runTaskQueued } from "./taskQueue";
 import { getFile, getFileHash } from "./file";
 import * as fsNative from "./fsNative";
 
-export interface CompileParameters extends ExecuteParameters {
-  time: number; // Time limit
-  memory: number; // Memory limit
-  messageFile?: string; // The file contains the message to display for user
+export interface CompilationConfig extends SandboxConfigWithoutMountInfo {
+  messageFile?: string; // The file contains the message to display for user (in the binary directory)
+  extraInfoFile?: string; // The file contains the extra information for running the compiled program  (in the binary directory)
   workingDirectory: string; // The working directory for the compiler or script
 }
 
@@ -60,7 +64,8 @@ export class CompileResultSuccess implements CompileResult {
     public readonly compileTaskHash: string,
     public readonly message: OmittableString,
     public readonly binaryDirectory: string,
-    public readonly binaryDirectorySize: number
+    public readonly binaryDirectorySize: number,
+    public readonly extraInfo: string
   ) {}
 
   // The referenceCount is initially zero, the result must be referenced at least once
@@ -82,7 +87,13 @@ export class CompileResultSuccess implements CompileResult {
     this.reference();
     await fsNative.copy(this.binaryDirectory, newBinaryDirectory);
     await this.dereference();
-    return new CompileResultSuccess(this.compileTaskHash, this.message, newBinaryDirectory, this.binaryDirectorySize);
+    return new CompileResultSuccess(
+      this.compileTaskHash,
+      this.message,
+      newBinaryDirectory,
+      this.binaryDirectorySize,
+      this.extraInfo
+    );
   }
 }
 
@@ -196,12 +207,12 @@ async function doCompile(
     inside: SANDBOX_INSIDE_PATH_BINARY
   };
 
-  const tempDirectory = safelyJoinPath(taskWorkingDirectory, "temp");
+  const tempDirectoryOutside = safelyJoinPath(taskWorkingDirectory, "temp");
 
   await Promise.all([
     ensureDirectoryEmpty(sourceDirectory.outside),
     ensureDirectoryEmpty(binaryDirectory.outside),
-    ensureDirectoryEmpty(tempDirectory)
+    ensureDirectoryEmpty(tempDirectoryOutside)
   ]);
 
   await Promise.all(
@@ -213,15 +224,18 @@ async function doCompile(
   const sourceFile = safelyJoinPath(sourceDirectory, sourceFilename);
   await fs.promises.writeFile(sourceFile.outside, compileTask.code);
 
-  const executeParameters = languageConfig.compile(
-    sourceFile.inside,
-    binaryDirectory.inside,
-    compileTask.compileAndRunOptions
-  );
-  const sandboxResult = await runSandbox({
-    taskId: null,
-    parameters: executeParameters,
-    tempDirectory,
+  const compileConfig = languageConfig.compile({
+    sourceDirectoryInside: sourceDirectory.inside,
+    sourcePathInside: sourceFile.inside,
+    binaryDirectoryInside: binaryDirectory.inside,
+    compileAndRunOptions: compileTask.compileAndRunOptions
+  });
+
+  // The `taskId` parameter of `runSandbox` is just used to cancel the sandbox
+  // But compilation couldn't be cancelled since multiple submissions may share the same compilation
+  const sandboxResult = await runSandbox(null, {
+    ...compileConfig,
+    tempDirectoryOutside,
     extraMounts: [
       {
         mappedPath: sourceDirectory,
@@ -234,9 +248,20 @@ async function doCompile(
     ]
   });
 
-  const messageFile = safelyJoinPath(binaryDirectory, executeParameters.messageFile);
-  const message = (await readFileOmitted(messageFile.outside, config.limit.compilerMessage)) || "";
-  await fsNative.remove(messageFile.outside);
+  const messageFile = safelyJoinPath(binaryDirectory, compileConfig.messageFile);
+  const extraInfoFile = compileConfig.extraInfoFile && safelyJoinPath(binaryDirectory, compileConfig.extraInfoFile);
+  const [message, extraInfo] = await Promise.all([
+    readFileOmitted(messageFile.outside, config.limit.compilerMessage).then(result => result || ""),
+    extraInfoFile
+      ? fsNative
+          .exists(extraInfoFile.outside)
+          .then(exists => (exists ? fs.promises.readFile(extraInfoFile.outside, "utf-8") : null))
+      : null
+  ]);
+  await Promise.all([
+    fsNative.remove(messageFile.outside),
+    extraInfoFile ? fsNative.remove(extraInfoFile.outside) : null
+  ]);
 
   if (sandboxResult.status === SandboxStatus.OK) {
     if (sandboxResult.code === 0) {
@@ -266,7 +291,7 @@ async function doCompile(
         // Since the initial compile result's directory is NOT preserved after returning to the task queue
         return await compileResultCache.set(
           compileTaskHash,
-          new CompileResultSuccess(compileTaskHash, message, binaryDirectory.outside, binaryDirectorySize)
+          new CompileResultSuccess(compileTaskHash, message, binaryDirectory.outside, binaryDirectorySize, extraInfo)
         );
       }
     } else {

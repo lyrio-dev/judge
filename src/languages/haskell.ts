@@ -1,33 +1,28 @@
 import { LanguageConfig } from ".";
 
-interface CompileAndRunOptionsCpp {
-  compiler: string;
-  std: string;
-  O: string;
-  m: string;
+interface CompileAndRunOptionsHaskell {
+  version: string;
 }
 
-export const languageConfig: LanguageConfig<CompileAndRunOptionsCpp> = {
-  name: "cpp",
+export const languageConfig: LanguageConfig<CompileAndRunOptionsHaskell> = {
+  name: "haskell",
   getMetaOptions: () => ({
-    sourceFilename: "main.cpp",
-    binarySizeLimit: 5 * 1024 * 1024 // 5 MiB, enough unless someone initlizes globals badly
+    sourceFilename: "main.hs",
+    binarySizeLimit: 5 * 1024 * 1024
   }),
   compile: ({ sourcePathInside, binaryDirectoryInside, compileAndRunOptions }) => ({
-    executable: compileAndRunOptions.compiler === "g++" ? "g++" : "clang++",
+    executable: "ghc",
     parameters: [
+      sourcePathInside,
+      "-outputdir",
+      binaryDirectoryInside,
       "-o",
       `${binaryDirectoryInside}/a.out`,
-      `-std=${compileAndRunOptions.std}`,
-      `-O${compileAndRunOptions.O}`,
+      `-XHaskell${compileAndRunOptions.version}`,
+      `-O2`,
+      "-dynamic",
       "-fdiagnostics-color=always",
-      "-DONLINE_JUDGE",
-      "-Wall",
-      "-Wextra",
-      "-Wno-unused-result",
-      compileAndRunOptions.compiler === "clang++" && compileAndRunOptions.m === "64" ? "-stdlib=libc++" : null,
-      `-m${compileAndRunOptions.m}`,
-      sourcePathInside
+      "-v0"
     ],
     time: 10000,
     memory: 1024 * 1024 * 1024 * 2,
@@ -40,7 +35,7 @@ export const languageConfig: LanguageConfig<CompileAndRunOptionsCpp> = {
   run: ({ binaryDirectoryInside, stdinFile, stdoutFile, stderrFile, parameters }) => ({
     executable: `${binaryDirectoryInside}/a.out`,
     parameters,
-    process: 1,
+    process: 10,
     stdin: stdinFile,
     stdout: stdoutFile,
     stderr: stderrFile

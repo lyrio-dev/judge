@@ -30,7 +30,7 @@
     "prettier": "^2.0.5",
     "promise-queue": "^2.2.5",
     "reflect-metadata": "^0.1.13",
-    "simple-sandbox": "^0.3.15",
+    "simple-sandbox": "^0.3.19",
     "socket.io-client": "^2.3.0",
     "systeminformation": "^4.26.9",
     "toposort": "^2.0.2",

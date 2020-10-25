@@ -2,7 +2,6 @@ import fs from "fs";
 import crypto from "crypto";
 import { join, normalize } from "path";
 
-import config from "./config";
 import * as fsNative from "./fsNative";
 
 export interface MappedPath {
@@ -45,14 +44,6 @@ export function safelyJoinPath(basePath: MappedPath | string, ...paths: string[]
   };
 }
 
-export async function setSandboxUserPermission(path: string, writeAccess: boolean): Promise<void> {
-  await fsNative.chmodown(path, {
-    mode: 0o755,
-    owner: writeAccess ? config.sandbox.user : 0,
-    group: writeAccess ? true : 0
-  });
-}
-
 export async function ensureDirectoryEmpty(path: string): Promise<void> {
   await fsNative.ensureDir(path);
   await fsNative.emptyDir(path);
@@ -93,4 +84,34 @@ export function hashData(data: string): Promise<string> {
   hash.end(data);
 
   return promise;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Key = keyof any;
+export type OverridableRecord<K extends Key, V> = Record<K, V | ((oldValue: V) => V)>;
+
+export function merge<K extends Key, V>(
+  baseRecord: OverridableRecord<K, V>,
+  overrideRecord: OverridableRecord<K, V>
+): OverridableRecord<K, V>;
+
+export function merge<K extends Key, V>(
+  baseRecord: Record<string, V>,
+  overrideRecord: OverridableRecord<K, V>
+): Record<string, V>;
+
+export function merge<K extends Key, V>(baseRecord: OverridableRecord<K, V>, overrideRecord: OverridableRecord<K, V>) {
+  if (!overrideRecord) return baseRecord;
+
+  const result: OverridableRecord<K, V> = { ...baseRecord };
+  Reflect.ownKeys(overrideRecord).forEach(key => {
+    const valueOrReducer = overrideRecord[key];
+    if (typeof valueOrReducer === "function") {
+      const oldValueOrReducer = result[key];
+      if (typeof oldValueOrReducer === "function")
+        result[key] = (olderValue: V) => valueOrReducer(oldValueOrReducer(olderValue));
+      else result[key] = valueOrReducer;
+    } else result[key] = valueOrReducer;
+  });
+  return result;
 }

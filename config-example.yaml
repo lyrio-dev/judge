@@ -12,11 +12,12 @@ taskWorkingDirectories:
   - /root/judge/3
 sandbox:
   rootfs: /opt/sandbox-test/rootfs
-  user: nobody
+  user: sandbox
   hostname: null
   environments:
-    - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    - HOME=/tmp
+    PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    HOME: /sandbox
+    LC_ALL: en_US.UTF-8
 limit:
   compilerMessage: 524288
   outputSize: 104857600

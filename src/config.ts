@@ -15,7 +15,8 @@ import {
   IsArray,
   ArrayMinSize,
   IsOptional,
-  IsNumber
+  IsNumber,
+  IsObject
 } from "class-validator";
 import winston from "winston";
 import yaml from "js-yaml";
@@ -41,9 +42,8 @@ export class SandboxConfig {
   @IsString()
   user: string;
 
-  @IsString({ each: true })
-  @IsArray()
-  environments: string[];
+  @IsObject()
+  environments: Record<string, string>;
 }
 
 export class LimitConfig {

@@ -8,7 +8,7 @@ import { compile, CompileResultSuccess } from "@/compile";
 import { startSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
 import config from "@/config";
-import { safelyJoinPath, MappedPath } from "@/utils";
+import { safelyJoinPath, MappedPath, merge } from "@/utils";
 import {
   readFileOmitted,
   stringToOmited,
@@ -120,9 +120,9 @@ async function runTestcase(
     inside: SANDBOX_INSIDE_PATH_WORKING
   };
 
-  const tempDirectory = safelyJoinPath(taskWorkingDirectory, "temp");
+  const tempDirectoryOutside = safelyJoinPath(taskWorkingDirectory, "temp");
 
-  await Promise.all([fsNative.ensureDir(workingDirectory.outside), fsNative.ensureDir(tempDirectory)]);
+  await Promise.all([fsNative.ensureDir(workingDirectory.outside), fsNative.ensureDir(tempDirectoryOutside)]);
 
   const inputFile = safelyJoinPath(workingDirectory, uuid());
   if (isSample) await fs.promises.writeFile(inputFile.outside, sample.inputData);
@@ -140,28 +140,29 @@ async function runTestcase(
       ? createSharedMemory(judgeInfo.interactor.sharedMemorySize * 1024 * 1024, disposer)
       : null;
 
-  const userSandbox = await startSandbox({
-    taskId: task.taskId,
-    parameters: {
-      ...userLanguageConfig.run(
-        userBinaryDirectory.inside,
-        workingDirectory.inside,
-        task.extraInfo.submissionContent.compileAndRunOptions,
-        timeLimit,
-        memoryLimit,
-        pipeInteractorToUser.read,
-        pipeUserToInteractor.write,
-        userStderrFile.inside
-      ),
-      time: timeLimit,
-      memory: memoryLimit * 1024 * 1024,
-      workingDirectory: workingDirectory.inside,
-      environments: [
-        `INTERACTOR_INTERFACE=${judgeInfo.interactor.interface}`,
-        `INTERACTOR_SHARED_MEMORY_FD=${sharedMemory ? sharedMemory.fd : -1}`
-      ]
-    },
-    tempDirectory,
+  const environments = {
+    INTERACTOR_INTERFACE: judgeInfo.interactor.interface,
+    INTERACTOR_SHARED_MEMORY_FD: String(sharedMemory ? sharedMemory.fd : -1)
+  };
+
+  const userRunConfig = userLanguageConfig.run({
+    binaryDirectoryInside: userBinaryDirectory.inside,
+    workingDirectoryInside: workingDirectory.inside,
+    compileAndRunOptions: task.extraInfo.submissionContent.compileAndRunOptions,
+    time: timeLimit,
+    memory: memoryLimit,
+    stdinFile: pipeInteractorToUser.read,
+    stdoutFile: pipeUserToInteractor.write,
+    stderrFile: userStderrFile.inside,
+    parameters: [],
+    compileResultExtraInfo: compileResult.extraInfo
+  });
+  const userSandbox = await startSandbox(task.taskId, {
+    ...userRunConfig,
+    time: timeLimit,
+    memory: memoryLimit * 1024 * 1024,
+    workingDirectory: workingDirectory.inside,
+    tempDirectoryOutside,
     extraMounts: [
       {
         mappedPath: userBinaryDirectory,
@@ -172,35 +173,31 @@ async function runTestcase(
         readOnly: false
       }
     ],
-    preservedFileDescriptors: [pipeInteractorToUser.read, pipeUserToInteractor.write, sharedMemory]
+    preservedFileDescriptors: [pipeInteractorToUser.read, pipeUserToInteractor.write, sharedMemory],
+    environments: merge(userRunConfig.environments, environments)
   });
 
   // By default use the testcase's time limit.
   const interactorTimeLimit = Math.max(timeLimit, judgeInfo.interactor.timeLimit || timeLimit);
   const interactorMemoryLimit = judgeInfo.interactor.memoryLimit || judgeInfo.memoryLimit;
-  const interactorSandbox = await startSandbox({
-    taskId: task.taskId,
-    parameters: {
-      ...interactorLanguageConfig.run(
-        interactorBinaryDirectory.inside,
-        workingDirectory.inside,
-        task.extraInfo.submissionContent.compileAndRunOptions,
-        interactorTimeLimit,
-        interactorMemoryLimit,
-        pipeUserToInteractor.read,
-        pipeInteractorToUser.write,
-        interactorStderrFile.inside,
-        [inputFile.inside, "/dev/null"]
-      ),
-      time: interactorTimeLimit,
-      memory: interactorMemoryLimit * 1024 * 1024,
-      workingDirectory: workingDirectory.inside,
-      environments: [
-        `INTERACTOR_INTERFACE=${judgeInfo.interactor.interface}`,
-        `INTERACTOR_SHARED_MEMORY_FD=${sharedMemory ? sharedMemory.fd : -1}`
-      ]
-    },
-    tempDirectory,
+  const interactorRunConfig = interactorLanguageConfig.run({
+    binaryDirectoryInside: interactorBinaryDirectory.inside,
+    workingDirectoryInside: workingDirectory.inside,
+    compileAndRunOptions: task.extraInfo.submissionContent.compileAndRunOptions,
+    time: interactorTimeLimit,
+    memory: interactorMemoryLimit,
+    stdinFile: pipeUserToInteractor.read,
+    stdoutFile: pipeInteractorToUser.write,
+    stderrFile: interactorStderrFile.inside,
+    parameters: [inputFile.inside, "/dev/null"],
+    compileResultExtraInfo: interactorCompileResult.extraInfo
+  });
+  const interactorSandbox = await startSandbox(task.taskId, {
+    ...interactorRunConfig,
+    time: interactorTimeLimit,
+    memory: interactorMemoryLimit * 1024 * 1024,
+    workingDirectory: workingDirectory.inside,
+    tempDirectoryOutside,
     extraMounts: [
       {
         mappedPath: interactorBinaryDirectory,
@@ -211,7 +208,8 @@ async function runTestcase(
         readOnly: false
       }
     ],
-    preservedFileDescriptors: [pipeUserToInteractor.read, pipeInteractorToUser.write, sharedMemory]
+    preservedFileDescriptors: [pipeUserToInteractor.read, pipeInteractorToUser.write, sharedMemory],
+    environments: merge(interactorRunConfig.environments, environments)
   });
 
   const interactorSandboxResult = await interactorSandbox.waitForStop();

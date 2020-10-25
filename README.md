@@ -16,12 +16,12 @@ The judge client of next-generation SYZOJ.
 * Custom checkers with multiple interfaces for Traditional problems.
 * Interaction problems with stdio or shared memory interaction interface.
 * Security and resources limitting powered by [simple-sandbox](https://github.com/t123yh/simple-sandbox).
+* Support multiple languages common or uncommon in competitive programming.
 
 These features are on the plan:
 
 * Other types of problem (Communication, ...)
 * Other forms of task (Hack, CustomTest, ...)
-* Other languages
 
 # Deploying
 You need a Linux system with:
@@ -86,14 +86,15 @@ sandbox:
   rootfs: /opt/sandbox-test/rootfs
   // The user to use in the sandbox
   // Do NOT modify it unless you know what you're doing
-  user: nobody
+  user: sandbox
   // The hostname inside the sandbox. Leave null to use the same as the outside hostname
   hostname: null
   // The environment variables for the sandbox
   // Do NOT modify it unless you know what you're doing
   environments:
-    - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-    - HOME=/tmp
+    PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    HOME: /sandbox
+    LC_ALL: en_US.UTF-8
 limit:
   // The max bytes of compiler message to display to the user, the remaining will be omitted
   compilerMessage: 524288
@@ -129,12 +130,4 @@ NEVER run multiple judge clients with the same `key` -- thay will conflit and no
 # Sandbox Rootfs
 The use of sandbox rootfs is aimed to isolate the access of user programs (and compiles) from the main system, to prevent some sensitive information to be stolen by user.
 
-The sandbox rootfs has nothing special compared to any other Linux rootfs. Currently there's no official build of rootfs to download. You can use our old [sandbox-rootfs-181202](https://github.com/syzoj/sandbox-rootfs/releases/tag/181202) for the old [judge-v3](https://github.com/syzoj/judge-v3) or just bootstrap your own rootfs with tools like `debootstrap` or `pacstrap`. Just make sure the compilers inside works.
-
-The sandbox rootfs won't be modified by compilers or user programs. But some mount points in `/sandbox` inside the rootfs will be created automatically by the sandbox.
-
-Currently you need to add `testlib.h` to your rootfs's include directory to use testlib interface of custom checker:
-
-```bash
-$ cp vendor/testlib/testlib.h $ROOTFS/usr/include/
-```
+Refer to [sandbox-ng](https://github.com/syzoj/sandbox-rootfs-ng) for more information.
