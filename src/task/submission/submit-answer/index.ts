@@ -5,7 +5,7 @@ import { v4 as uuid } from "uuid";
 import { SubmissionTask, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
 import { SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
-import config from "@/config";
+import { serverSideConfig } from "@/config";
 import { safelyJoinPath } from "@/utils";
 import { isOmittableString, OmittableString, readFileOmitted, prependOmittableString } from "@/omittableString";
 import { getFile } from "@/file";
@@ -91,10 +91,10 @@ async function runTestcase(
 
   result.input =
     testcase.inputFile &&
-    (await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFile]), config.limit.dataDisplay));
+    (await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFile]), serverSideConfig.limit.dataDisplay));
   result.output = await readFileOmitted(
     getFile(task.extraInfo.testData[testcase.outputFile]),
-    config.limit.dataDisplay
+    serverSideConfig.limit.dataDisplay
   );
 
   const fileUnzipResult = unzipResult.status[userOutputFilename];
@@ -123,7 +123,7 @@ async function runTestcase(
     const outputFile = safelyJoinPath(workingDirectory, uuid());
     await fsNative.copy(fileUnzipResult.path, outputFile.outside);
 
-    result.userOutput = await readFileOmitted(outputFile.outside, config.limit.dataDisplayForSubmitAnswer);
+    result.userOutput = await readFileOmitted(outputFile.outside, serverSideConfig.limit.dataDisplayForSubmitAnswer);
     result.userOutputLength = (await fs.promises.stat(outputFile.outside)).size;
 
     const checkerResult =

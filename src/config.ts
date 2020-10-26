@@ -15,7 +15,6 @@ import {
   IsArray,
   ArrayMinSize,
   IsOptional,
-  IsNumber,
   IsObject
 } from "class-validator";
 import winston from "winston";
@@ -44,28 +43,6 @@ export class SandboxConfig {
 
   @IsObject()
   environments: Record<string, string>;
-}
-
-export class LimitConfig {
-  @IsNumber()
-  @IsPositive()
-  compilerMessage: number;
-
-  @IsNumber()
-  @IsPositive()
-  outputSize: number;
-
-  @IsNumber()
-  @IsPositive()
-  dataDisplay: number;
-
-  @IsNumber()
-  @IsPositive()
-  dataDisplayForSubmitAnswer: number;
-
-  @IsNumber()
-  @IsPositive()
-  stderrDisplay: number;
 }
 
 export class Config {
@@ -106,10 +83,6 @@ export class Config {
   @ValidateNested()
   @Type(() => SandboxConfig)
   sandbox: SandboxConfig;
-
-  @ValidateNested()
-  @Type(() => LimitConfig)
-  limit: LimitConfig;
 }
 
 const filePath = process.env.SYZOJ_NG_JUDGE_CONFIG_FILE;
@@ -129,13 +102,6 @@ if (errors.length > 0) {
 // Check config (errors)
 if (new Set(config.taskWorkingDirectories.map(path => resolve(path))).size !== config.taskWorkingDirectories.length) {
   winston.error(`Duplicated paths in config.taskWorkingDirectories, please check the config file.`);
-  process.exit(1);
-}
-
-if (config.binaryCacheMaxSize < config.limit.outputSize) {
-  winston.error(
-    `config.binaryCacheMaxSize (= ${config.binaryCacheMaxSize}) < config.limit.outputSize (= ${config.limit.outputSize}). The compile result maybe unable to be handled.`
-  );
   process.exit(1);
 }
 
@@ -177,6 +143,17 @@ for (const dir of config.taskWorkingDirectories) {
   ensureDirectoryEmptySync(dir);
 }
 
+// Some config are from server
+interface ServerSideConfig {
+  limit: {
+    compilerMessage: number;
+    outputSize: number;
+    dataDisplay: number;
+    dataDisplayForSubmitAnswer: number;
+    stderrDisplay: number;
+  };
+}
+
 function checkTaskWorkingDirectory(path: string) {
   try {
     execFileSync("findmnt", [path, "-t", "tmpfs"]);
@@ -188,16 +165,29 @@ function checkTaskWorkingDirectory(path: string) {
   }
 }
 
-function checkLimitTooLarge(limit: string, maxRecommendedValue: number) {
-  const value: number = config.limit[limit];
-  if (value > maxRecommendedValue) {
-    winston.warn(
-      `config.limit.${limit} (= ${value}) is too large. This will significantly increase the server database's size.`
+export const serverSideConfig = {} as ServerSideConfig;
+// Some of the config items are configured in server
+export function updateServerSideConfig(newServerSideConfig: unknown) {
+  Object.assign(serverSideConfig, newServerSideConfig);
+
+  if (config.binaryCacheMaxSize < serverSideConfig.limit.outputSize) {
+    winston.error(
+      `config.binaryCacheMaxSize (= ${config.binaryCacheMaxSize}) < serverSideConfig.limit.outputSize (= ${serverSideConfig.limit.outputSize}). The compile result maybe unable to be handled.`
     );
+    process.exit(1);
   }
+
+  function checkLimitTooLarge(limit: string, maxRecommendedValue: number) {
+    const value: number = serverSideConfig.limit[limit];
+    if (value > maxRecommendedValue) {
+      winston.warn(
+        `serverSideConfig.limit.${limit} (= ${value}) is too large. This will significantly increase the server database's size.`
+      );
+    }
+  }
+  checkLimitTooLarge("compilerMessage", 1 * 1024 * 1024); // 1 MiB
+  checkLimitTooLarge("dataDisplay", 1024); // 1 KiB
+  checkLimitTooLarge("stderrDisplay", 10240); // 10 KiB
 }
-checkLimitTooLarge("compilerMessage", 1 * 1024 * 1024); // 1 MiB
-checkLimitTooLarge("dataDisplay", 1024); // 1 KiB
-checkLimitTooLarge("stderrDisplay", 10240); // 10 KiB
 
 export default config;

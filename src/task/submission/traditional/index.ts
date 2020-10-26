@@ -7,7 +7,7 @@ import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submissi
 import { compile, CompileResultSuccess } from "@/compile";
 import { runSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
-import config from "@/config";
+import { serverSideConfig } from "@/config";
 import { safelyJoinPath, MappedPath } from "@/utils";
 import {
   isOmittableString,
@@ -167,7 +167,7 @@ async function runTestcase(
 
   const workingDirectorySize = await fsNative.calcSize(workingDirectory.outside);
   const inputFileSize = await fsNative.calcSize(inputFile.outside);
-  if (workingDirectorySize - inputFileSize > config.limit.outputSize) {
+  if (workingDirectorySize - inputFileSize > serverSideConfig.limit.outputSize) {
     result.status = TestcaseStatusTraditional.OutputLimitExceeded;
   } else if (sandboxResult.status === SandboxStatus.TimeLimitExceeded) {
     result.status = TestcaseStatusTraditional.TimeLimitExceeded;
@@ -183,13 +183,13 @@ async function runTestcase(
   }
 
   result.input = isSample
-    ? stringToOmited(sample.inputData, config.limit.dataDisplay)
-    : await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFile]), config.limit.dataDisplay);
+    ? stringToOmited(sample.inputData, serverSideConfig.limit.dataDisplay)
+    : await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFile]), serverSideConfig.limit.dataDisplay);
   result.output = isSample
-    ? stringToOmited(sample.outputData, config.limit.dataDisplay)
-    : await readFileOmitted(getFile(task.extraInfo.testData[testcase.outputFile]), config.limit.dataDisplay);
-  result.userOutput = await readFileOmitted(outputFile.outside, config.limit.dataDisplay);
-  result.userError = await readFileOmitted(stderrFile.outside, config.limit.stderrDisplay);
+    ? stringToOmited(sample.outputData, serverSideConfig.limit.dataDisplay)
+    : await readFileOmitted(getFile(task.extraInfo.testData[testcase.outputFile]), serverSideConfig.limit.dataDisplay);
+  result.userOutput = await readFileOmitted(outputFile.outside, serverSideConfig.limit.dataDisplay);
+  result.userError = await readFileOmitted(stderrFile.outside, serverSideConfig.limit.stderrDisplay);
   result.time = sandboxResult.time / 1e6;
   result.memory = sandboxResult.memory / 1024;
 

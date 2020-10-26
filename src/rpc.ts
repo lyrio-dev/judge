@@ -2,7 +2,7 @@ import SocketIO from "socket.io-client";
 import winston from "winston";
 import lodashDebounce from "lodash.debounce";
 
-import config from "./config";
+import config, { updateServerSideConfig } from "./config";
 import taskHandler, { Task } from "./task";
 
 import getSystemInfo from "./systemInfo";
@@ -49,8 +49,9 @@ export class RPC {
       this.connect();
     });
 
-    this.socket.on("ready", async (name: string) => {
+    this.socket.on("ready", async (name: string, serverSideConfig: unknown) => {
       winston.info(`Successfully authorized as ${name}`);
+      updateServerSideConfig(serverSideConfig);
       this.ready = true;
       this.socket.emit("systemInfo", await getSystemInfo());
     });

@@ -5,7 +5,7 @@ import Axios from "axios";
 import winston from "winston";
 import unzipper from "unzipper";
 
-import config from "@/config";
+import { serverSideConfig } from "@/config";
 import { safelyJoinPath, ensureDirectoryEmpty } from "@/utils";
 import * as fsNative from "@/fsNative";
 
@@ -82,7 +82,7 @@ export class SubmissionFile {
       .on("entry", (entry: unzipper.Entry) => {
         if (entry.type === "File" && wantedFiles.includes(entry.path)) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if ((entry.vars as any).uncompressedSize <= config.limit.outputSize) {
+          if ((entry.vars as any).uncompressedSize <= serverSideConfig.limit.outputSize) {
             // Unzip this file
             writeFilePromises.push(
               new Promise((resolve, reject) => {

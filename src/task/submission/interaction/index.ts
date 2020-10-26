@@ -7,7 +7,7 @@ import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submissi
 import { compile, CompileResultSuccess } from "@/compile";
 import { startSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
-import config from "@/config";
+import { serverSideConfig } from "@/config";
 import { safelyJoinPath, MappedPath, merge } from "@/utils";
 import {
   readFileOmitted,
@@ -236,9 +236,9 @@ async function runTestcase(
     throw new Error(`Corrupt sandbox result: ${JSON.stringify(userSandboxResult)}`);
 
   result.input = isSample
-    ? stringToOmited(sample.inputData, config.limit.dataDisplay)
-    : await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFile]), config.limit.dataDisplay);
-  result.userError = await readFileOmitted(userStderrFile.outside, config.limit.stderrDisplay);
+    ? stringToOmited(sample.inputData, serverSideConfig.limit.dataDisplay)
+    : await readFileOmitted(getFile(task.extraInfo.testData[testcase.inputFile]), serverSideConfig.limit.dataDisplay);
+  result.userError = await readFileOmitted(userStderrFile.outside, serverSideConfig.limit.stderrDisplay);
   result.time = userSandboxResult.time / 1e6;
   result.memory = userSandboxResult.memory / 1024;
 

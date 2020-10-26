@@ -95,21 +95,6 @@ sandbox:
     PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     HOME: /sandbox
     LC_ALL: en_US.UTF-8
-limit:
-  // The max bytes of compiler message to display to the user, the remaining will be omitted
-  compilerMessage: 524288
-  // The max output size of user program, the user will get a OutputLimitExceeded if exceeds
-  // Note that it's done with checking the output files' size so
-  // the user program can still write a large file to occupy the disk size
-  // if you're not using size limited tmpfs for task working directories
-  outputSize: 104857600
-  // The max bytes of user's output file and testdata to display to the user, the remaining will be omitted
-  dataDisplay: 128
-  // The max bytes of user's output file (of a submission to a submit-answer problem) to display to the user,
-  // the remaining will be omitted
-  dataDisplayForSubmitAnswer: 128
-  // The max bytes of user's stderr output to display to the user, the remaining will be omitted
-  stderrDisplay: 5120
 ```
 
 Start it with:

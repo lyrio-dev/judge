@@ -15,7 +15,7 @@ import {
   SANDBOX_INSIDE_PATH_SOURCE,
   SANDBOX_INSIDE_PATH_BINARY
 } from "./sandbox";
-import config from "./config";
+import config, { serverSideConfig } from "./config";
 import { runTaskQueued } from "./taskQueue";
 import { getFile, getFileHash } from "./file";
 import * as fsNative from "./fsNative";
@@ -251,7 +251,7 @@ async function doCompile(
   const messageFile = safelyJoinPath(binaryDirectory, compileConfig.messageFile);
   const extraInfoFile = compileConfig.extraInfoFile && safelyJoinPath(binaryDirectory, compileConfig.extraInfoFile);
   const [message, extraInfo] = await Promise.all([
-    readFileOmitted(messageFile.outside, config.limit.compilerMessage).then(result => result || ""),
+    readFileOmitted(messageFile.outside, serverSideConfig.limit.compilerMessage).then(result => result || ""),
     extraInfoFile
       ? fsNative
           .exists(extraInfoFile.outside)
