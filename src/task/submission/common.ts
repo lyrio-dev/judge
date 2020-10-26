@@ -110,40 +110,40 @@ export async function runCommonTask<
       ? await task.events.sampleTestcaseWillEnqueue(sampleId, sample, extraParameters)
       : await task.events.testcaseWillEnqueue(subtaskIndex, testcaseIndex, extraParameters);
 
-    if (existingResult) return existingResult;
+    const result =
+      existingResult ||
+      (await runTaskQueued(async (taskWorkingDirectory, disposer) => {
+        if (isSample) {
+          winston.verbose(`Running sample testcase ${sampleId}`);
+          task.events.sampleTestcaseRunning(sampleId);
+        } else {
+          winston.verbose(`Running testcase ${subtaskIndex}.${testcaseIndex}`);
+          task.events.testcaseRunning(subtaskIndex, testcaseIndex);
+        }
 
-    return await runTaskQueued(async (taskWorkingDirectory, disposer) => {
-      if (isSample) {
-        winston.verbose(`Running sample testcase ${sampleId}`);
-        task.events.sampleTestcaseRunning(sampleId);
-      } else {
-        winston.verbose(`Running testcase ${subtaskIndex}.${testcaseIndex}`);
-        task.events.testcaseRunning(subtaskIndex, testcaseIndex);
-      }
+        return await onTestcase(
+          task,
+          judgeInfo,
+          sampleId,
+          sample,
+          subtaskIndex,
+          testcaseIndex,
+          testcase,
+          extraParameters,
+          taskWorkingDirectory,
+          disposer
+        );
+      }));
 
-      const result = await onTestcase(
-        task,
-        judgeInfo,
-        sampleId,
-        sample,
-        subtaskIndex,
-        testcaseIndex,
-        testcase,
-        extraParameters,
-        taskWorkingDirectory,
-        disposer
-      );
+    if (isSample) {
+      task.events.sampleTestcaseFinished(sampleId, sample, result);
+      winston.verbose(`Finished testcase ${subtaskIndex}.${testcaseIndex}: ${JSON.stringify(result)}`);
+    } else {
+      task.events.testcaseFinished(subtaskIndex, testcaseIndex, result);
+      winston.verbose(`Finished sample testcase ${sampleId}: ${JSON.stringify(result)}`);
+    }
 
-      if (isSample) {
-        task.events.sampleTestcaseFinished(sampleId, sample, result);
-        winston.verbose(`Finished testcase ${subtaskIndex}.${testcaseIndex}: ${JSON.stringify(result)}`);
-      } else {
-        task.events.testcaseFinished(subtaskIndex, testcaseIndex, result);
-        winston.verbose(`Finished sample testcase ${sampleId}: ${JSON.stringify(result)}`);
-      }
-
-      return result;
-    });
+    return result;
   };
 
   let firstNonAcceptedStatus: string = null;
