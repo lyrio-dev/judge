@@ -303,20 +303,20 @@ auto Init(Napi::Env env, Napi::Object exports) {
         return [=] () {
             traverse(path, [=] (const std::string &entryPath) {
                 if (changeMode) {
-                    if (chmod(path.c_str(), mode) != 0) {
+                    if (chmod(entryPath.c_str(), mode) != 0) {
                         int err = errno;
                         throw std::filesystem::filesystem_error(
-                            "chmod(" + path + ")",
+                            "chmod(" + entryPath + ")",
                             std::error_code(err, std::system_category())
                         );
                     }
                 }
 
                 if (changeOwner || changeGroup) {
-                    if (chown(path.c_str(), owner, group) != 0) {
+                    if (chown(entryPath.c_str(), owner, group) != 0) {
                         int err = errno;
                         throw std::filesystem::filesystem_error(
-                            "chown(" + path + ")",
+                            "chown(" + entryPath + ")",
                             std::error_code(err, std::system_category())
                         );
                     }
