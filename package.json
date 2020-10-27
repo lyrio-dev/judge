@@ -33,7 +33,7 @@
     "simple-sandbox": "^0.3.19",
     "socket.io-client": "^2.3.0",
     "socket.io-msgpack-parser": "^2.2.1",
-    "systeminformation": "^4.26.9",
+    "systeminformation": "^4.27.11",
     "toposort": "^2.0.2",
     "unzipper": "^0.10.11",
     "uuid": "^8.1.0",
