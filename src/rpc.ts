@@ -1,6 +1,7 @@
 import SocketIO from "socket.io-client";
 import winston from "winston";
 import lodashDebounce from "lodash.debounce";
+import SocketIOParser from "socket.io-msgpack-parser";
 
 import config, { updateServerSideConfig } from "./config";
 import taskHandler, { Task } from "./task";
@@ -35,6 +36,9 @@ export class RPC {
       transports: ["websocket"],
       query: {
         key: config.key
+      },
+      ...{
+        parser: SocketIOParser
       }
     });
 
