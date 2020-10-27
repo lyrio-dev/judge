@@ -51,7 +51,7 @@ void builtinCheckerLines(bool caseSensitive) {
     if (ansLines > oufLines)
         quitf(_wa, "Output is shorter than answer - expected %d lines but found %d lines", ansLines, oufLines);
     
-    if (oufLines > ansLines > 0)
+    if (oufLines > ansLines)
         quitf(_wa, "Output is longer than answer - expected %d lines but found %d lines", oufLines, ansLines);
     
     if (ansLines == 1)

@@ -68,7 +68,7 @@ public:
             const size_t BUFFER_SIZE = 64 * 1024;
             char buffer[BUFFER_SIZE];
 
-            size_t size;
+            ssize_t size;
             while ((size = read(pipeFd[0], buffer, BUFFER_SIZE)) > 0) {
                 message.append(buffer, size);
             }
