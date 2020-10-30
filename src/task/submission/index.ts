@@ -76,6 +76,7 @@ export interface SubmissionProgress<TestcaseResult> {
   // Only valid when finished
   status?: SubmissionStatus;
   score?: number;
+  totalOccupiedTime?: number;
 
   compile?: {
     success: boolean;
@@ -171,6 +172,9 @@ function getTestcaseCountOfSubtask(judgeInfo: JudgeInfoCommon, subtaskIndex: num
 export default async function onSubmission<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters>(
   task: SubmissionTask<JudgeInfo, SubmissionContent, TestcaseResult, ExtraParameters>
 ): Promise<void> {
+  // Calculate the total wall time time occupied by this submission
+  const startTime = new Date();
+
   try {
     if (!(task.extraInfo.problemType in ProblemType)) {
       throw new ConfigurationError(`Unsupported problem type: ${task.extraInfo.problemType}`);
@@ -310,6 +314,7 @@ export default async function onSubmission<JudgeInfo, SubmissionContent, Testcas
         progress.progressType = SubmissionProgressType.Finished;
         progress.status = status;
         progress.score = score;
+        progress.totalOccupiedTime = +new Date() - +startTime;
         task.reportProgressRaw(progress);
       }
     };
