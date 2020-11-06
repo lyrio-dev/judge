@@ -10,6 +10,7 @@ import getSystemInfo from "./systemInfo";
 import { CanceledError } from "./error";
 
 export class RPC {
+  // eslint-disable-next-line no-undef
   private socket: SocketIOClient.Socket;
 
   private ready: boolean = false;

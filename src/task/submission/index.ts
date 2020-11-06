@@ -11,13 +11,13 @@ import * as Traditional from "./traditional";
 import * as Interaction from "./interaction";
 import * as SubmitAnswer from "./submit-answer";
 
-/* eslint-disable no-shadow */
+/* eslint-disable @typescript-eslint/no-shadow */
 enum ProblemType {
   Traditional = "Traditional",
   Interaction = "Interaction",
   SubmitAnswer = "SubmitAnswer"
 }
-/* eslint-enable no-shadow */
+/* eslint-enable @typescript-eslint/no-shadow */
 
 export interface ProblemSample {
   inputData: string;
@@ -43,7 +43,7 @@ export enum SubmissionProgressType {
 export enum SubmissionStatus {
   Pending = "Pending",
 
-  // eslint-disable-next-line no-shadow
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   ConfigurationError = "ConfigurationError",
   SystemError = "SystemError",
   Canceled = "Canceled",

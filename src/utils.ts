@@ -18,7 +18,7 @@ export function safelyJoinPath(basePath: string, ...paths: string[]): string;
  * Safely join paths. Ensure the joined path won't escape the base path.
  */
 export function safelyJoinPath(basePath: MappedPath | string, ...paths: string[]) {
-  // eslint-disable-next-line no-shadow
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   function doSafelyJoin(basePath: string, paths: string[]) {
     // path.normalize ensures the `../`s is on the left side of the result path
     const childPath = normalize(join(...paths));

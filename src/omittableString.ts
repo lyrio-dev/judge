@@ -52,7 +52,7 @@ export function omittableStringToString(omittableString: OmittableString) {
 }
 
 export function prependOmittableString(str: string, omittableString: OmittableString, trim = false): OmittableString {
-  // eslint-disable-next-line no-shadow
+  // eslint-disable-next-line @typescript-eslint/no-shadow
   const trimString = (str: string) => (trim ? str.trim() : str);
   return typeof omittableString === "string"
     ? trimString(str + omittableString)
