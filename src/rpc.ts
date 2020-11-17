@@ -73,6 +73,11 @@ export class RPC {
 
   onCancel(taskId: string, callback: () => void): () => void {
     const callbacks = this.pendingTaskCancelCallback.get(taskId);
+    if (!callbacks) {
+      // Already canceled
+      callback();
+      return () => null;
+    }
     callbacks.add(callback);
     return () => callbacks.delete(callback);
   }
@@ -80,8 +85,11 @@ export class RPC {
   private cancelTask(taskId: string) {
     winston.info(`Canceling task ${taskId}`);
     const callbacks = this.pendingTaskCancelCallback.get(taskId);
-    this.pendingTaskCancelCallback.delete(taskId);
-    callbacks.forEach(f => f());
+    if (callbacks) {
+      // No such task or already canceled
+      this.pendingTaskCancelCallback.delete(taskId);
+      callbacks.forEach(f => f());
+    }
   }
 
   isCanceled(taskId: string) {
