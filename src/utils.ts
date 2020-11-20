@@ -60,7 +60,12 @@ export function ensureDirectoryEmptySync(path: string) {
 export async function readFileLimited(filePath: string, lengthLimit: number): Promise<string> {
   let file: fs.promises.FileHandle;
   try {
-    file = await fs.promises.open(filePath, "r");
+    try {
+      file = await fs.promises.open(filePath, "r");
+    } catch (e) {
+      if (e.code === "ENOENT") return "";
+      throw e;
+    }
     const actualSize = (await file.stat()).size;
     const buf = Buffer.allocUnsafe(Math.min(actualSize, lengthLimit));
     const { bytesRead } = await file.read(buf, 0, buf.length, 0);
@@ -69,7 +74,7 @@ export async function readFileLimited(filePath: string, lengthLimit: number): Pr
   } catch (e) {
     return "";
   } finally {
-    await file.close();
+    if (file) await file.close();
   }
 }
 

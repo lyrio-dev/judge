@@ -10,7 +10,13 @@ export type OmittableString =
 export async function readFileOmitted(filePath: string, lengthLimit: number): Promise<OmittableString> {
   let file: fs.promises.FileHandle;
   try {
-    file = await fs.promises.open(filePath, "r");
+    try {
+      file = await fs.promises.open(filePath, "r");
+    } catch (e) {
+      if (e.code === "ENOENT") return "";
+      throw e;
+    }
+
     const fullLength = (await file.stat()).size;
     const buffer = Buffer.allocUnsafe(Math.min(fullLength, lengthLimit));
     const { bytesRead } = await file.read(buffer, 0, buffer.length, 0);
@@ -22,7 +28,7 @@ export async function readFileOmitted(filePath: string, lengthLimit: number): Pr
       };
     else return data;
   } finally {
-    await file.close();
+    if (file) await file.close();
   }
 }
 
