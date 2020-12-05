@@ -183,6 +183,7 @@ export async function runCommonTask<
       for (const i of subtask.testcases.keys()) {
         task.events.testcaseFinished(subtaskIndex, i, null);
       }
+      subtaskScores[subtaskIndex] = 0;
       continue;
     }
 
