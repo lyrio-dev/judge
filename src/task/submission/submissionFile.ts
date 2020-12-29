@@ -1,7 +1,7 @@
 import fs from "fs";
 import { tmpdir } from "os";
 
-import Axios from "axios";
+import axios from "axios";
 import winston from "winston";
 import unzipper from "unzipper";
 
@@ -41,26 +41,27 @@ export class SubmissionFile {
     this.unzippedPath = safelyJoinPath(tmpdir(), `${fileInfo.uuid}_unzipped`);
 
     // eslint-disable-next-line no-async-promise-executor
-    this.downloadPromise = new Promise(async (resolve, reject) => {
-      const response = await Axios({
-        url: fileInfo.url,
-        responseType: "stream"
-      });
+    this.downloadPromise = axios({
+      url: fileInfo.url,
+      responseType: "stream"
+    }).then(
+      response =>
+        new Promise((resolve, reject) => {
+          if (this.disposed) {
+            resolve();
+            return;
+          }
 
-      if (this.disposed) {
-        resolve();
-        return;
-      }
+          const fileStream = fs.createWriteStream(this.path);
 
-      const fileStream = fs.createWriteStream(this.path);
+          response.data.pipe(fileStream);
 
-      response.data.pipe(fileStream);
+          fileStream.on("finish", resolve);
+          fileStream.on("error", reject);
 
-      fileStream.on("finish", resolve);
-      fileStream.on("error", reject);
-
-      winston.verbose(`SubmissionFile: start downloading file ${fileInfo.uuid}`);
-    });
+          winston.verbose(`SubmissionFile: start downloading file ${fileInfo.uuid}`);
+        })
+    );
   }
 
   async waitForDownload() {
