@@ -83,7 +83,20 @@ export interface LanguageConfig<T> {
   }) => TaskIndependentSandboxConfig;
 }
 
-const languageList = ["cpp", "c", "java", "kotlin", "pascal", "python", "rust", "go", "haskell", "csharp", "fsharp"];
+const languageList = [
+  "cpp",
+  "c",
+  "java",
+  "kotlin",
+  "pascal",
+  "python",
+  "rust",
+  "swift",
+  "go",
+  "haskell",
+  "csharp",
+  "fsharp"
+];
 
 /* eslint-disable import/no-dynamic-require */
 /* eslint-disable @typescript-eslint/no-var-requires */
