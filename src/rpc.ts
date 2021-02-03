@@ -52,7 +52,7 @@ export class RPC {
     this.socket.on("disconnect", () => {
       this.ready = false;
       winston.error("Disconnected from server");
-
+      this.cancelAllTasks();
       this.connect();
     });
 
@@ -90,6 +90,13 @@ export class RPC {
       this.pendingTaskCancelCallback.delete(taskId);
       callbacks.forEach(f => f());
     }
+  }
+
+  private cancelAllTasks() {
+    this.pendingTaskCancelCallback.forEach((callbacks, taskId) => {
+      winston.info(`Canceling task ${taskId} since connection lost`);
+      callbacks.forEach(f => f());
+    });
   }
 
   isCanceled(taskId: string) {
@@ -184,7 +191,15 @@ export class RPC {
       const taskInfo = `{ taskId: ${task.taskId}, type: ${task.type} }`;
       winston.info(`[Thread ${threadId}] Got task: ${taskInfo}`);
 
-      this.pendingTaskCancelCallback.set(task.taskId, new Set());
+      let canceled = false;
+      this.pendingTaskCancelCallback.set(
+        task.taskId,
+        new Set([
+          () => {
+            canceled = true;
+          }
+        ])
+      );
 
       // Debounce the onProgress function so we won't send progress too fast to the server
       const reportProgress = lodashDebounce(async (progress: unknown) => {
@@ -204,7 +219,7 @@ export class RPC {
         });
       }, 100);
       task.reportProgressRaw = (progress: unknown) => {
-        this.ensureNotCanceled(task.taskId);
+        if (canceled) throw new CanceledError();
         reportProgress(progress);
       };
 
