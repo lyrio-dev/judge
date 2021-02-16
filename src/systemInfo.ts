@@ -60,15 +60,15 @@ export default async function getSystemInfo(): Promise<SystemInfo> {
   const memory =
     memLayout.reduce((max, val) => (max.size > val.size ? max : val), memLayout[0]) || ({} as typeof memLayout[0]);
 
+  const cpuCores = [cpu.physicalCores, cpu.cores].find(x => Number.isSafeInteger(x));
+
   // eslint-disable-next-line no-return-assign
   return (cachedResult = {
     os: osInfo.distro + (osInfo.release === "unknown" ? "" : ` ${osInfo.release}`),
     kernel: `${os.type().split("_").join(" ")} ${os.release()}`,
     arch: osInfo.arch,
     cpu: {
-      model: [cpu.manufacturer, cpu.brand, "@", cpu.physicalCores && `${cpu.physicalCores}x`, `${cpu.speed}GHz`]
-        .filter(x => x)
-        .join(" "),
+      model: [cpu.manufacturer, cpu.brand, "@", cpuCores && `${cpuCores}x`, `${cpu.speed}GHz`].filter(x => x).join(" "),
       flags: cpuFlags,
       cache: Object.fromEntries(
         Object.entries(cpu.cache)
