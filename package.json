@@ -19,7 +19,7 @@
     }
   },
   "dependencies": {
-    "axios": "^0.21.0",
+    "axios": "^0.21.1",
     "bindings": "^1.5.0",
     "class-transformer": "^0.3.1",
     "class-validator": "^0.12.2",
@@ -34,7 +34,7 @@
     "simple-sandbox": "^0.3.21",
     "socket.io-client": "^2.3.0",
     "socket.io-msgpack-parser": "^2.2.1",
-    "systeminformation": "^4.28.1",
+    "systeminformation": "^4.34.11",
     "toposort": "^2.0.2",
     "unzipper": "^0.10.11",
     "uuid": "^8.3.1",
