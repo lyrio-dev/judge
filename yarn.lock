@@ -3052,10 +3052,10 @@ signal-exit@^3.0.2:
   resolved "https://registry.yarnpkg.com/signal-exit/-/signal-exit-3.0.3.tgz#a1410c2edd8f077b08b4e253c8eacfcaf057461c"
   integrity sha512-VUJ49FC8U1OxwZLxIbTTrDvLnf/6TDgxZcK8wxR8zs13xpx7xbG60ndBlhNrFi2EMuFRoeDoJO7wthSLq42EjA==
 
-simple-sandbox@^0.3.20:
-  version "0.3.20"
-  resolved "https://registry.yarnpkg.com/simple-sandbox/-/simple-sandbox-0.3.20.tgz#8a0cc46f3a460bee01437b7832d2188c8520e4c0"
-  integrity sha512-r7cyEfYni1lZS0OW+l3NX5h8jGAbrHMWXGHxaF5b94NqneypN2I/xbnBDPkLfOhfVRq7b9prcpDZUutp9jkfPQ==
+simple-sandbox@^0.3.21:
+  version "0.3.21"
+  resolved "https://registry.yarnpkg.com/simple-sandbox/-/simple-sandbox-0.3.21.tgz#edd9369df4ec076a9ac3828c252842b7d3288fe5"
+  integrity sha512-BSQMFxRCi/uA2zNN5IlLoozETGnilLlB0RhKCbjKHMAYRW1xpgzpLSWwBqDJ48vX3AUoquKu4xdWg+ySZDfw2A==
   dependencies:
     bindings "^1.5.0"
     cmake-js "^6.1.0"
