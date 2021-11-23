@@ -1,8 +1,8 @@
 {
-  "name": "syzoj-ng-judge",
+  "name": "@lyrio/judge",
   "version": "1.0.0",
-  "description": "The judge client of next-generation SYZOJ",
-  "repository": "https://github.com/syzoj/syzoj-ng-judge",
+  "description": "The judge service of Lyrio",
+  "repository": "https://github.com/lyrio-dev/judge",
   "license": "MIT",
   "author": "Menci <huanghaorui301@gmail.com>",
   "scripts": {

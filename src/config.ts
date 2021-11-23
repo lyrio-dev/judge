@@ -25,7 +25,7 @@ import * as fsNative from "./fsNative";
 
 winston.add(
   new winston.transports.Console({
-    level: process.env.SYZOJ_NG_JUDGE_LOG_LEVEL || "info",
+    level: process.env.LYRIO_JUDGE_LOG_LEVEL || "info",
     format: winston.format.combine(winston.format.cli())
   })
 );
@@ -85,9 +85,9 @@ export class Config {
   sandbox: SandboxConfig;
 }
 
-const filePath = process.env.SYZOJ_NG_JUDGE_CONFIG_FILE;
+const filePath = process.env.LYRIO_JUDGE_CONFIG_FILE;
 if (!filePath) {
-  winston.error("Please specify configuration file with environment variable SYZOJ_NG_JUDGE_CONFIG_FILE");
+  winston.error("Please specify configuration file with environment variable LYRIO_JUDGE_CONFIG_FILE");
   process.exit(1);
 }
 

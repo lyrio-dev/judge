@@ -1,12 +1,12 @@
-# SYZOJ NG Judge
+# Lyrio Judge
 
-[![Build Status](https://img.shields.io/github/workflow/status/syzoj/syzoj-ng-judge/CI?style=flat-square)](https://github.com/syzoj/syzoj-ng-judge/actions?query=workflow%3ACI)
-[![Dependencies](https://img.shields.io/david/syzoj/syzoj-ng-judge?style=flat-square)](https://david-dm.org/syzoj/syzoj-ng-judge)
+[![Build Status](https://img.shields.io/github/workflow/status/lyrio-dev/judge/CI?style=flat-square)](https://github.com/lyrio-dev/judge/actions?query=workflow%3ACI)
+[![Dependencies](https://img.shields.io/david/lyrio-dev/judge?style=flat-square)](https://david-dm.org/lyrio-dev/judge)
 [![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg?style=flat-square)](http://commitizen.github.io/cz-cli/)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
-[![License](https://img.shields.io/github/license/syzoj/syzoj-ng-judge?style=flat-square)](LICENSE)
+[![License](https://img.shields.io/github/license/lyrio-dev/judge?style=flat-square)](LICENSE)
 
-The judge client of next-generation SYZOJ.
+The judge service of Lyrio.
 
 # Features
 * Download files from server automatically.
@@ -32,8 +32,8 @@ You need a Linux system with:
 Clone the git repo (`--recursive` is required for git submodules):
 
 ```bash
-$ git clone git@github.com:syzoj/syzoj-ng-judge.git --recursive
-$ cd syzoj-ng-judge
+$ git clone git@github.com:lyrio-dev/judge.git lyrio-judge --recursive
+$ cd lyrio-judge
 ```
 
 Install the dependency `libfmt-dev`. On Ubuntu:
@@ -50,14 +50,14 @@ $ yarn
 $ cp config-example.yaml config.yaml
 ```
 
-Add a judge client to your SYZOJ NG server with `/api/judgeClient/addJudgeClient` and copy the `key` in the response.
+Add a judge client to your Lyrio backend server with `/api/judgeClient/addJudgeClient` and copy the `key` in the response.
 
 Create a copy of the config file, then edit it:
 
 ```yaml
 // The server url without "/api"
-serverUrl: http://syzoj-ng.test/
-// The key of this judge client from SYZOJ NG server
+serverUrl: http://lyrio.test/
+// The key of this judge client from Lyrio backend server
 key: 40uXJPXzuO2Ha41iuh8Pjw1h0ahvP9i/zJk7Rtn/
 // The path to store files downloaded from server, will be created if not exists
 dataStore: /root/judge/data
@@ -99,7 +99,7 @@ sandbox:
 Start it with:
 
 ```
-$ SYZOJ_NG_JUDGE_CONFIG_FILE=./config.yaml yarn start
+$ LYRIO_JUDGE_CONFIG_FILE=./config.yaml yarn start
 ```
 
 # Parallel Judging
@@ -114,4 +114,4 @@ NEVER run multiple judge clients with the same `key` -- thay will conflit and no
 # Sandbox RootFS
 The use of sandbox rootfs is aimed to isolate the access of user programs (and compiles) from the main system, to prevent some sensitive information to be stolen by user.
 
-You may download the official [sandbox-rootfs-ng](https://github.com/syzoj/sandbox-rootfs-ng) directly from release or bootstrap it by yourself. You can also build a custom rootfs with your favorite disto.
+You may download the official [sandbox-rootfs](https://github.com/lyrio-dev/sandbox-rootfs) directly from release or bootstrap it by yourself. You can also build a custom rootfs with your favorite disto.
