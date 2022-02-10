@@ -138,10 +138,10 @@ export async function runCommonTask<
 
     if (isSample) {
       task.events.sampleTestcaseFinished(sampleId, sample, result);
-      winston.verbose(`Finished testcase ${subtaskIndex}.${testcaseIndex}: ${JSON.stringify(result)}`);
+      winston.verbose(`Finished sample testcase ${sampleId}: ${JSON.stringify(result)}`);
     } else {
       task.events.testcaseFinished(subtaskIndex, testcaseIndex, result);
-      winston.verbose(`Finished sample testcase ${sampleId}: ${JSON.stringify(result)}`);
+      winston.verbose(`Finished testcase ${subtaskIndex}.${testcaseIndex}: ${JSON.stringify(result)}`);
     }
 
     return result;
