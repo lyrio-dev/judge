@@ -81,8 +81,9 @@ export async function runCommonTask<
     .map(testcase => testcase.points)
     .filter(x => x != null)
     .reduce((s, x) => s + x, 0);
-  const countUnspecfiedPercentagePointsForSubtasks = judgeInfo.subtasks.filter(testcase => testcase.points == null)
-    .length;
+  const countUnspecfiedPercentagePointsForSubtasks = judgeInfo.subtasks.filter(
+    testcase => testcase.points == null
+  ).length;
   const defaultPercentagePointsForSubtasks =
     (100 - sumSpecfiedPercentagePointsForSubtasks) / countUnspecfiedPercentagePointsForSubtasks;
 
@@ -191,8 +192,9 @@ export async function runCommonTask<
       .map(testcase => testcase.points)
       .filter(x => x != null)
       .reduce((s, x) => s + x, 0);
-    const countUnspecfiedPercentagePointsForTestcases = subtask.testcases.filter(testcase => testcase.points == null)
-      .length;
+    const countUnspecfiedPercentagePointsForTestcases = subtask.testcases.filter(
+      testcase => testcase.points == null
+    ).length;
     const defaultPercentagePointsForTestcases =
       (100 - sumSpecfiedPercentagePointsForTestcases) / countUnspecfiedPercentagePointsForTestcases;
 
@@ -253,7 +255,7 @@ export async function runCommonTask<
   } else if (firstNonAcceptedStatus === null) {
     task.events.finished(SubmissionStatus.Accepted, roundedScore);
   } else {
-    task.events.finished((firstNonAcceptedStatus as unknown) as SubmissionStatus, roundedScore);
+    task.events.finished(firstNonAcceptedStatus as unknown as SubmissionStatus, roundedScore);
   }
 }
 

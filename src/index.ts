@@ -9,5 +9,6 @@ if (process.getuid() !== 0) {
   process.exit(1);
 }
 
-rpc.connect();
-for (let i = 0; i < config.taskConsumingThreads; i++) rpc.startTaskConsumerThread(i);
+rpc.connect().then(() => {
+  for (let i = 0; i < config.taskConsumingThreads; i++) rpc.startTaskConsumerThread(i);
+});

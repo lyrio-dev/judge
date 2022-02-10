@@ -13,8 +13,6 @@ export class RPC {
   // eslint-disable-next-line no-undef
   private socket: SocketIOClient.Socket;
 
-  private ready: boolean = false;
-
   /**
    * For each task:
    * * Functions to stop all the sandboxes and reject sandbox promises with CanceledErrors
@@ -23,7 +21,7 @@ export class RPC {
    */
   private pendingTaskCancelCallback: Map<string, Set<() => void>> = new Map();
 
-  connect() {
+  async connect() {
     winston.info("Trying to connect to the server...");
 
     if (this.socket) {
@@ -35,7 +33,6 @@ export class RPC {
     while (serverUrl.endsWith("/")) serverUrl = serverUrl.slice(0, -1);
     this.socket = SocketIO(`${serverUrl}/judge`, {
       path: "/api/socket",
-      reconnection: true,
       transports: ["websocket"],
       query: {
         key: config.key
@@ -50,17 +47,9 @@ export class RPC {
     });
 
     this.socket.on("disconnect", () => {
-      this.ready = false;
-      winston.error("Disconnected from server");
+      winston.error("Disconnected from server, restarting");
       this.cancelAllTasks();
-      this.connect();
-    });
-
-    this.socket.on("ready", async (name: string, serverSideConfig: unknown) => {
-      winston.info(`Successfully authorized as ${name}`);
-      updateServerSideConfig(serverSideConfig);
-      this.ready = true;
-      this.socket.emit("systemInfo", await getSystemInfo());
+      process.exit(100);
     });
 
     this.socket.on("cancel", (taskId: string) => this.cancelTask(taskId));
@@ -68,6 +57,16 @@ export class RPC {
     this.socket.on("authenticationFailed", () => {
       winston.error("Failed to authentication to server, please check your key");
       process.exit(1);
+    });
+
+    await new Promise<void>(resolve => {
+      this.socket.on("ready", async (name: string, serverSideConfig: unknown) => {
+        winston.info(`Successfully authorized as ${name}`);
+        updateServerSideConfig(serverSideConfig);
+        this.socket.emit("systemInfo", await getSystemInfo());
+
+        resolve();
+      });
     });
   }
 
@@ -110,84 +109,40 @@ export class RPC {
     }
   }
 
-  async ensureReady() {
-    if (this.ready) return;
-    while (
-      !(await new Promise(resolve => {
-        const onReady = () => {
-          this.socket.off("disconnect", onDisconnect);
-          resolve(true);
-        };
-        const onDisconnect = () => {
-          this.socket.off("ready", onReady);
-          resolve(false);
-        };
-        this.socket.once("ready", onReady);
-        this.socket.once("disconnect", onDisconnect);
-      }))
-    );
-  }
-
   async requestFiles(fileUuids: string[]) {
     winston.info(`Requesting for ${fileUuids.length} files from server`);
 
-    await this.ensureReady();
-
-    const urlsOrDisconnect = await new Promise<string[]>(resolve => {
-      const onDisconnect = () => {
-        winston.error("Connection lost while fetching files");
-        resolve(null);
-      };
-
-      this.socket.on("disconnect", onDisconnect);
-
-      this.socket.emit("requestFiles", fileUuids, (urls: string[]) => {
-        this.socket.off("disconnect", onDisconnect);
-        resolve(urls);
+    const urls = await new Promise<string[]>(resolve => {
+      winston.info(`Request sent for ${fileUuids.length} files`);
+      this.socket.emit("requestFiles", fileUuids, (responseUrls: string[]) => {
+        winston.info(`Got download URLs for ${fileUuids.length} files`);
+        resolve(responseUrls);
       });
     });
 
-    if (!urlsOrDisconnect) {
+    if (!urls) {
       throw new Error(`Failed to fetch ${fileUuids.length} files, connection lost`);
     }
 
-    return urlsOrDisconnect;
+    return urls;
   }
 
   async startTaskConsumerThread(threadId: number) {
     for (;;) {
-      await this.ensureReady();
-
       this.socket.emit("consumeTask", threadId);
       winston.info(`[Thread ${threadId}] Consuming task`);
 
-      const currentConnection = this.socket.id;
-
-      const taskOrDisconnect = await new Promise<{ task: Task<unknown, unknown>; ack: () => void }>(resolve => {
+      const taskAndAck = await new Promise<{ task: Task<unknown, unknown>; ack: () => void }>(resolve => {
         const onTask = (threadIdOfTask: number, task: Task<unknown, unknown>, ack: () => void) => {
           if (threadIdOfTask !== threadId) return;
           this.socket.off("task", onTask);
-          this.socket.off("disconnect", onDisconnect);
           resolve({ task, ack });
         };
 
-        const onDisconnect = () => {
-          winston.error(`[Thread ${threadId}] Connection lost while consuming task`);
-          this.socket.off("task", onTask);
-          resolve(null);
-        };
-
-        // If the socket disconnects, we must emit another consumeTask
         this.socket.on("task", onTask);
-        this.socket.once("disconnect", onDisconnect);
       });
 
-      if (!taskOrDisconnect) {
-        // Disconnected
-        continue;
-      }
-
-      const { task, ack } = taskOrDisconnect;
+      const { task, ack } = taskAndAck;
       const taskInfo = `{ taskId: ${task.taskId}, type: ${task.type} }`;
       winston.info(`[Thread ${threadId}] Got task: ${taskInfo}`);
 
@@ -203,12 +158,6 @@ export class RPC {
 
       // Debounce the onProgress function so we won't send progress too fast to the server
       const reportProgress = lodashDebounce(async (progress: unknown) => {
-        await this.ensureReady();
-        if (this.socket.id !== currentConnection) {
-          winston.warn(`Ignoring progress reporting for task ${taskInfo} since reconnected`);
-          return;
-        }
-
         winston.verbose(`[Thread ${threadId}] Reporting progress for task ${taskInfo}`);
         this.socket.emit("progress", {
           taskMeta: {
@@ -233,19 +182,8 @@ export class RPC {
 
       this.pendingTaskCancelCallback.delete(task.taskId);
 
-      // If the connection fails, don't attempt to emit ack
-      if (!this.ready) {
-        winston.error(
-          `[Thread ${threadId}] Connection lost while processing task ${taskInfo}, the task couldn't be acknowledged`
-        );
-      } else if (this.ready && this.socket.id !== currentConnection) {
-        winston.error(
-          `[Thread ${threadId}] Reconnected while processing task ${taskInfo}, the task couldn't be acknowledged`
-        );
-      } else {
-        ack();
-        winston.info(`[Thread ${threadId}] Sent ack for finished task ${taskInfo}`);
-      }
+      ack();
+      winston.info(`[Thread ${threadId}] Sent ack for finished task ${taskInfo}`);
     }
   }
 }

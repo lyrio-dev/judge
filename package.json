@@ -10,7 +10,7 @@
     "check-style": "prettier --check \"src/**/*.ts\"",
     "install": "cmake-js compile",
     "lint": "eslint src --ext ts --cache",
-    "start": "node -r @swc-node/register -r tsconfig-paths/register src/index",
+    "start": "node -r @swc-node/register -r tsconfig-paths/register index",
     "test": "tsc --noEmit -p ."
   },
   "config": {

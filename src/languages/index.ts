@@ -8,9 +8,7 @@ export interface LanguageConfig<T> {
    */
   name: string;
 
-  getMetaOptions: (
-    compileAndRunOptions: T
-  ) => {
+  getMetaOptions: (compileAndRunOptions: T) => {
     /**
      * The user submitted source file will be named with the name e.g. "main.cpp"
      */
