@@ -1,0 +1,12 @@
+{
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "jsx": false,
+      "decorators": true,
+      "decoratorsBeforeExport": true
+    },
+    "transform": null,
+    "target": "es2021"
+  }
+}

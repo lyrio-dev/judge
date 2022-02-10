@@ -91,7 +91,7 @@ if (!filePath) {
   process.exit(1);
 }
 
-const parsedConfig = yaml.safeLoad(fs.readFileSync(filePath).toString("utf-8"));
+const parsedConfig = yaml.load(fs.readFileSync(filePath).toString("utf-8"));
 const config = plainToClass(Config, parsedConfig);
 const errors = validateSync(config);
 if (errors.length > 0) {

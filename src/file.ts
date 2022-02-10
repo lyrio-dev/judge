@@ -114,5 +114,5 @@ export async function getFileHash(fileUuid: string) {
 
   fileHashCache.set(fileUuid, promise);
 
-  return promise;
+  return await promise;
 }

@@ -1,3 +1,6 @@
+# swc
+/.swc
+
 # cmake build directory
 /build
 
