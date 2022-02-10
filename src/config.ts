@@ -80,6 +80,10 @@ export class Config {
   @IsArray()
   taskWorkingDirectories: string[];
 
+  @IsPositive()
+  @IsInt()
+  rpcTimeout: number;
+
   @ValidateNested()
   @Type(() => SandboxConfig)
   sandbox: SandboxConfig;

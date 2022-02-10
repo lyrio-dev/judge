@@ -10,6 +10,7 @@ taskWorkingDirectories:
   - /root/judge/1
   - /root/judge/2
   - /root/judge/3
+rpcTimeout: 20000
 sandbox:
   rootfs: /opt/rootfs-ng
   user: sandbox

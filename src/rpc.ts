@@ -47,9 +47,7 @@ export class RPC {
     });
 
     this.socket.on("disconnect", () => {
-      winston.error("Disconnected from server, restarting");
-      this.cancelAllTasks();
-      process.exit(100);
+      this.restart();
     });
 
     this.socket.on("cancel", (taskId: string) => this.cancelTask(taskId));
@@ -59,14 +57,38 @@ export class RPC {
       process.exit(1);
     });
 
-    await new Promise<void>(resolve => {
-      this.socket.on("ready", async (name: string, serverSideConfig: unknown) => {
-        winston.info(`Successfully authorized as ${name}`);
-        updateServerSideConfig(serverSideConfig);
-        this.socket.emit("systemInfo", await getSystemInfo());
+    await this.withTimeout(
+      new Promise<void>(resolve => {
+        this.socket.on("ready", async (name: string, serverSideConfig: unknown) => {
+          winston.info(`Successfully authorized as ${name}`);
+          updateServerSideConfig(serverSideConfig);
+          this.socket.emit("systemInfo", await getSystemInfo());
 
-        resolve();
-      });
+          resolve();
+        });
+      })
+    );
+  }
+
+  restart() {
+    winston.error("Disconnected from server, restarting");
+    this.cancelAllTasks();
+    process.exit(100);
+  }
+
+  async withTimeout<T>(promise: Promise<T>): Promise<T> {
+    return await new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        winston.error(`Timed out after ${config.rpcTimeout} milliseconds, assuming disconnected`);
+        this.restart();
+      }, config.rpcTimeout);
+
+      function onPromiseReady(action: () => void) {
+        clearTimeout(timer);
+        action();
+      }
+
+      promise.then(result => onPromiseReady(() => resolve(result))).catch(error => onPromiseReady(() => reject(error)));
     });
   }
 
@@ -112,17 +134,15 @@ export class RPC {
   async requestFiles(fileUuids: string[]) {
     winston.info(`Requesting for ${fileUuids.length} files from server`);
 
-    const urls = await new Promise<string[]>(resolve => {
-      winston.info(`Request sent for ${fileUuids.length} files`);
-      this.socket.emit("requestFiles", fileUuids, (responseUrls: string[]) => {
-        winston.info(`Got download URLs for ${fileUuids.length} files`);
-        resolve(responseUrls);
-      });
-    });
-
-    if (!urls) {
-      throw new Error(`Failed to fetch ${fileUuids.length} files, connection lost`);
-    }
+    const urls = await this.withTimeout(
+      new Promise<string[]>(resolve => {
+        winston.info(`Request sent for ${fileUuids.length} files`);
+        this.socket.emit("requestFiles", fileUuids, (responseUrls: string[]) => {
+          winston.info(`Got download URLs for ${fileUuids.length} files`);
+          resolve(responseUrls);
+        });
+      })
+    );
 
     return urls;
   }
