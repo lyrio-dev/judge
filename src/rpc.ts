@@ -1,4 +1,4 @@
-import SocketIO from "socket.io-client";
+import SocketIO, { Socket } from "socket.io-client";
 import winston from "winston";
 import lodashDebounce from "lodash.debounce";
 import SocketIOParser from "socket.io-msgpack-parser";
@@ -11,7 +11,7 @@ import { CanceledError } from "./error";
 
 export class RPC {
   // eslint-disable-next-line no-undef
-  private socket: SocketIOClient.Socket;
+  private socket: Socket;
 
   /**
    * For each task:
