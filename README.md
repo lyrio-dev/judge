@@ -76,6 +76,12 @@ maxConcurrentDownloads: 10
 // Each run task need a separated working directory
 // It's recommended to ues unique tmpfs mount point for each task to have better output size limiting and performance
 maxConcurrentTasks: 3
+// The timeout for RPC operations with server
+rpcTimeout: 20000
+// The timeout of downloading a file from testdata or user-uploaded answer
+downloadTimeout: 20000
+// The maximum times of retrying after a download failure (including timeout)
+downloadRetry: 3
 taskWorkingDirectories:
   - /root/judge/1
   - /root/judge/2
