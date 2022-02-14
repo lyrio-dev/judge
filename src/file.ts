@@ -61,9 +61,14 @@ export async function ensureFiles(fileUuids: string[]) {
   const alreadyDownloading: Promise<void>[] = nonExists.map(fileUuid => downloadingFiles.get(fileUuid)).filter(x => x);
   const notDownloading: string[] = nonExists.filter(fileUuid => !downloadingFiles.has(fileUuid));
 
-  winston.verbose(
-    `ensureFiles: ${alreadyDownloading.length} files already downloading, requesting ${notDownloading.length} files`
-  );
+  winston.verbose(`ensureFiles: ${alreadyDownloading.length} files already downloading`);
+
+  if (notDownloading.length === 0) {
+    winston.verbose(`ensureFiles: no files to download`);
+    return null;
+  }
+
+  winston.verbose(`ensureFiles: requesting ${notDownloading.length} files`);
 
   const fetchFiles = rpc.requestFiles(notDownloading);
   const newDownloading = notDownloading.map((fileUuid, i) => {
