@@ -11,6 +11,8 @@ taskWorkingDirectories:
   - /root/judge/2
   - /root/judge/3
 rpcTimeout: 20000
+downloadTimeout: 20000
+downloadRetry: 3
 sandbox:
   rootfs: /opt/rootfs-ng
   user: sandbox

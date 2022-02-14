@@ -84,6 +84,14 @@ export class Config {
   @IsInt()
   rpcTimeout: number;
 
+  @IsPositive()
+  @IsInt()
+  downloadTimeout: number;
+
+  @IsPositive()
+  @IsInt()
+  downloadRetry: number;
+
   @ValidateNested()
   @Type(() => SandboxConfig)
   sandbox: SandboxConfig;

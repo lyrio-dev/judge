@@ -25,19 +25,51 @@ async function downloadFile(url: string, fileUuid: string) {
   await fsNative.ensureDir(tempDir);
 
   const tempFilename = safelyJoinPath(tempDir, fileUuid);
-  const fileStream = fs.createWriteStream(safelyJoinPath(tempDir, fileUuid));
 
-  const response = await axios({
-    url,
-    responseType: "stream"
-  });
+  for (let retry = config.downloadRetry - 1; retry >= 0; retry--) {
+    const fileStream = fs.createWriteStream(safelyJoinPath(tempDir, fileUuid));
+    const abortController = new AbortController();
 
-  response.data.pipe(fileStream);
+    const response = await axios({
+      url,
+      responseType: "stream",
+      signal: abortController.signal
+    });
 
-  await new Promise((resolve, reject) => {
-    fileStream.on("finish", resolve);
-    fileStream.on("error", reject);
-  });
+    const timeoutTimer = setTimeout(() => {
+      abortController.abort();
+    }, config.downloadTimeout);
+
+    response.data.pipe(fileStream);
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const finish = (callback: () => void) => {
+          clearTimeout(timeoutTimer);
+          callback();
+        };
+
+        fileStream.on("finish", () => finish(resolve));
+        fileStream.on("error", () => finish(reject));
+      });
+
+      // Download success!
+      break;
+    } catch (e) {
+      if (retry !== 0) continue;
+
+      if (abortController.signal.aborted) {
+        throw new Error(
+          `Failed to download file ${fileUuid}: timed-out after ${config.downloadTimeout}ms for ${config.downloadRetry} times`
+        );
+      }
+
+      // Failed
+      throw e;
+    } finally {
+      fileStream.close();
+    }
+  }
 
   const persistFilename = safelyJoinPath(config.dataStore, fileUuid);
   await fs.promises.rename(tempFilename, persistFilename);
