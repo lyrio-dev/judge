@@ -95,25 +95,25 @@ export async function ensureFiles(fileUuids: string[]) {
 
   winston.verbose(`ensureFiles: ${alreadyDownloading.length} files already downloading`);
 
+  let newDownloading: Promise<void>[] = [];
   if (notDownloading.length === 0) {
-    winston.verbose(`ensureFiles: no files to download`);
-    return null;
+    winston.verbose(`ensureFiles: no files to request`);
+  } else {
+    winston.verbose(`ensureFiles: requesting ${notDownloading.length} files`);
+
+    const fetchFiles = rpc.requestFiles(notDownloading);
+    newDownloading = notDownloading.map((fileUuid, i) => {
+      const promise = queue
+        .add(async () => {
+          const urlList = await fetchFiles;
+          await downloadFile(urlList[i], fileUuid);
+        })
+        .finally(() => downloadingFiles.delete(fileUuid));
+
+      downloadingFiles.set(fileUuid, promise);
+      return promise;
+    });
   }
-
-  winston.verbose(`ensureFiles: requesting ${notDownloading.length} files`);
-
-  const fetchFiles = rpc.requestFiles(notDownloading);
-  const newDownloading = notDownloading.map((fileUuid, i) => {
-    const promise = queue
-      .add(async () => {
-        const urlList = await fetchFiles;
-        await downloadFile(urlList[i], fileUuid);
-      })
-      .finally(() => downloadingFiles.delete(fileUuid));
-
-    downloadingFiles.set(fileUuid, promise);
-    return promise;
-  });
 
   return await Promise.all([...alreadyDownloading, ...newDownloading]);
 }
