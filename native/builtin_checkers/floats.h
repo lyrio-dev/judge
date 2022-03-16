@@ -8,7 +8,7 @@ void builtinCheckerFloats(int precision) {
         n++;
         double j = ans.readDouble();
         double p = ouf.readDouble();
-        if (fabs(j - p) > eps + 1E-15)
+        if (!doubleCompare(j, p, eps))
             quitf(_wa, "%d%s number differ - expected: '%.10f', found: '%.10f'", n, englishEnding(n).c_str(), j, p);
     }
 
