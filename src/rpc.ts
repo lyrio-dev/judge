@@ -37,8 +37,8 @@ export class RPC {
       query: {
         key: config.key
       },
-      maxHttpBufferSize: 1e9,
       ...{
+        maxHttpBufferSize: 1e9,
         parser: SocketIOParser
       }
     });
