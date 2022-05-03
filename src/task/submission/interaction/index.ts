@@ -219,14 +219,17 @@ async function runTestcase(
   const MESSAGE_LENGTH_LIMIT = 256;
   const interactorMessage = await readFileOmitted(interactorStderrFile.outside, MESSAGE_LENGTH_LIMIT);
 
-  if (interactorSandboxResult.status !== SandboxStatus.OK) {
+  if (
+    userSandboxResult.status === SandboxStatus.TimeLimitExceeded ||
+    interactorSandboxResult.status === SandboxStatus.TimeLimitExceeded
+  )
+    result.status = TestcaseStatusInteraction.TimeLimitExceeded;
+  else if (interactorSandboxResult.status !== SandboxStatus.OK) {
     result.status = TestcaseStatusInteraction.JudgementFailed;
     result.systemMessage = `Interactor encountered a ${SandboxStatus[interactorSandboxResult.status]}`;
     result.interactorMessage = interactorMessage;
   } else if (userSandboxResult.status === SandboxStatus.OutputLimitExceeded)
     result.status = TestcaseStatusInteraction.OutputLimitExceeded;
-  else if (userSandboxResult.status === SandboxStatus.TimeLimitExceeded)
-    result.status = TestcaseStatusInteraction.TimeLimitExceeded;
   else if (userSandboxResult.status === SandboxStatus.MemoryLimitExceeded)
     result.status = TestcaseStatusInteraction.MemoryLimitExceeded;
   else if (userSandboxResult.status === SandboxStatus.RuntimeError) {
