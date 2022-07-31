@@ -5,7 +5,7 @@
 /build
 
 # configuration file
-config.json
+config.yaml
 
 # compiled output
 /dist
