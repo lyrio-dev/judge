@@ -68,7 +68,9 @@ export default async function getSystemInfo(): Promise<SystemInfo> {
     kernel: `${os.type().split("_").join(" ")} ${os.release()}`,
     arch: osInfo.arch,
     cpu: {
-      model: [cpu.manufacturer, cpu.brand, "@", cpuCores && `${cpuCores}x`, `${cpu.speed}GHz`].filter(x => x).join(" "),
+      model: [cpu.manufacturer, cpu.brand, "@", cpuCores && `${cpuCores}x`, `${cpu.speedMax || cpu.speed}GHz`]
+        .filter(x => x)
+        .join(" "),
       flags: cpuFlags,
       cache: Object.fromEntries(
         Object.entries(cpu.cache)
