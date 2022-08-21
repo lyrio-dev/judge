@@ -45,6 +45,24 @@ export class SandboxConfig {
   environments: Record<string, string>;
 }
 
+export class CpuAffinityConfig {
+  @IsInt({ each: true })
+  @IsOptional()
+  compiler?: number[];
+
+  @IsInt({ each: true })
+  @IsOptional()
+  userProgram?: number[];
+
+  @IsInt({ each: true })
+  @IsOptional()
+  interactor?: number[];
+
+  @IsInt({ each: true })
+  @IsOptional()
+  checker?: number[];
+}
+
 export class Config {
   @IsString()
   serverUrl: string;
@@ -95,6 +113,11 @@ export class Config {
   @ValidateNested()
   @Type(() => SandboxConfig)
   sandbox: SandboxConfig;
+
+  @ValidateNested()
+  @Type(() => CpuAffinityConfig)
+  @IsOptional()
+  cpuAffinity: CpuAffinityConfig;
 }
 
 const filePath = process.env.LYRIO_JUDGE_CONFIG_FILE;

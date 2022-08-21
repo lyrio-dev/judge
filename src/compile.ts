@@ -10,17 +10,18 @@ import getLanguage, { LanguageConfig } from "./languages";
 import { MappedPath, safelyJoinPath, ensureDirectoryEmpty } from "./utils";
 import { readFileOmitted, OmittableString, prependOmittableString } from "./omittableString";
 import {
-  SandboxConfigWithoutMountInfo,
+  SandboxConfigBase,
   runSandbox,
   SANDBOX_INSIDE_PATH_SOURCE,
-  SANDBOX_INSIDE_PATH_BINARY
+  SANDBOX_INSIDE_PATH_BINARY,
+  CpuAffinityStrategy
 } from "./sandbox";
 import config, { serverSideConfig } from "./config";
 import { runTaskQueued } from "./taskQueue";
 import { getFile, getFileHash } from "./file";
 import * as fsNative from "./fsNative";
 
-export interface CompilationConfig extends SandboxConfigWithoutMountInfo {
+export interface CompilationConfig extends SandboxConfigBase {
   messageFile?: string; // The file contains the message to display for user (in the binary directory)
   extraInfoFile?: string; // The file contains the extra information for running the compiled program  (in the binary directory)
   workingDirectory: string; // The working directory for the compiler or script
@@ -245,7 +246,8 @@ async function doCompile(
         mappedPath: binaryDirectory,
         readOnly: false
       }
-    ]
+    ],
+    cpuAffinity: CpuAffinityStrategy.Compiler
   });
 
   const messageFile = safelyJoinPath(binaryDirectory, compileConfig.messageFile);

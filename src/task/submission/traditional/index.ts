@@ -5,7 +5,7 @@ import { SandboxStatus } from "simple-sandbox";
 
 import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
-import { runSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
+import { CpuAffinityStrategy, runSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
 import getLanguage from "@/languages";
 import { serverSideConfig } from "@/config";
 import { safelyJoinPath, MappedPath } from "@/utils";
@@ -162,7 +162,8 @@ async function runTestcase(
         mappedPath: workingDirectory,
         readOnly: false
       }
-    ]
+    ],
+    cpuAffinity: CpuAffinityStrategy.UserProgram
   });
 
   const workingDirectorySize = await fsNative.calcSize(workingDirectory.outside);

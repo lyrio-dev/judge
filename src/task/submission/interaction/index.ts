@@ -5,7 +5,7 @@ import { SandboxStatus } from "simple-sandbox";
 
 import { SubmissionTask, SubmissionStatus, ProblemSample } from "@/task/submission";
 import { compile, CompileResultSuccess } from "@/compile";
-import { startSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING } from "@/sandbox";
+import { startSandbox, SANDBOX_INSIDE_PATH_BINARY, SANDBOX_INSIDE_PATH_WORKING, CpuAffinityStrategy } from "@/sandbox";
 import getLanguage from "@/languages";
 import { serverSideConfig } from "@/config";
 import { safelyJoinPath, MappedPath, merge } from "@/utils";
@@ -174,7 +174,8 @@ async function runTestcase(
       }
     ],
     preservedFileDescriptors: [pipeInteractorToUser.read, pipeUserToInteractor.write, sharedMemory],
-    environments: merge(userRunConfig.environments, environments)
+    environments: merge(userRunConfig.environments, environments),
+    cpuAffinity: CpuAffinityStrategy.UserProgram
   });
 
   // By default use the testcase's time limit.
@@ -209,7 +210,8 @@ async function runTestcase(
       }
     ],
     preservedFileDescriptors: [pipeUserToInteractor.read, pipeInteractorToUser.write, sharedMemory],
-    environments: merge(interactorRunConfig.environments, environments)
+    environments: merge(interactorRunConfig.environments, environments),
+    cpuAffinity: CpuAffinityStrategy.Interactor
   });
 
   const interactorSandboxResult = await interactorSandbox.waitForStop();

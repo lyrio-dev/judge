@@ -7,6 +7,13 @@ import { CanceledError } from "./error";
 import { FileDescriptor } from "./posixUtils";
 import * as fsNative from "./fsNative";
 
+export enum CpuAffinityStrategy {
+  Compiler = "Compiler",
+  UserProgram = "UserProgram",
+  Interactor = "Interactor",
+  Checker = "Checker"
+}
+
 /**
  * `TaskIndependentSandboxConfig` doesn't contain `time`, `memory` and `workingDirectory` property.
  *
@@ -60,11 +67,11 @@ export interface TaskIndependentSandboxConfig {
 }
 
 /**
- * `SandboxConfigWithoutMountInfo` doesn't contain `tempDirectoryOutside` and `extraMounts` property.
+ * `SandboxConfigBase` doesn't contain `tempDirectoryOutside`, `extraMounts` and `cpuAffinity` property.
  *
- * It's used for compilation config since we use common mounting config for all languages.
+ * It's used for compilation config since we use common mounting config and CPU affinity for all languages.
  */
-export interface SandboxConfigWithoutMountInfo extends TaskIndependentSandboxConfig {
+export interface SandboxConfigBase extends TaskIndependentSandboxConfig {
   time: number;
   memory: number;
   /**
@@ -78,7 +85,7 @@ export interface SandboxConfigWithoutMountInfo extends TaskIndependentSandboxCon
   preservedFileDescriptors?: FileDescriptor[];
 }
 
-export interface SandboxConfig extends SandboxConfigWithoutMountInfo {
+export interface SandboxConfig extends SandboxConfigBase {
   /**
    * The directory path outside the sandbox being mounted to `/tmp` inside sandbox
    */
@@ -88,6 +95,11 @@ export interface SandboxConfig extends SandboxConfigWithoutMountInfo {
    * Extra mounts other than temp directory
    */
   extraMounts: SandboxMountDirectory[];
+
+  /**
+   * Pin the task to specfic CPU cores (starting from 0, defined in config)
+   */
+  cpuAffinity: CpuAffinityStrategy;
 }
 
 export interface SandboxMountDirectory {
@@ -106,6 +118,21 @@ async function setSandboxUserPermission(path: string, writeAccess: boolean): Pro
     owner: writeAccess ? sandboxUser.uid : 0,
     group: writeAccess ? sandboxUser.gid : 0
   });
+}
+
+function resolveSandboxCpuAffinity(strategy: CpuAffinityStrategy): number[] {
+  const map = {
+    [CpuAffinityStrategy.Compiler]: config.cpuAffinity?.compiler,
+    [CpuAffinityStrategy.UserProgram]: config.cpuAffinity?.userProgram,
+    [CpuAffinityStrategy.Interactor]: config.cpuAffinity?.interactor,
+    [CpuAffinityStrategy.Checker]: config.cpuAffinity?.checker
+  };
+
+  if (!(strategy in map)) {
+    throw new Error(`Unknown CPU affinity strategy: ${strategy}`);
+  }
+
+  return map[strategy];
 }
 
 /**
@@ -172,7 +199,8 @@ export async function startSandbox(taskId: string, sandboxConfig: SandboxConfig)
     parameters: [...parametersPrepend, ...(sandboxConfig.parameters || []).filter(x => x != null)],
     environments: Object.entries(environments).map(([key, value]) => `${key}=${value}`),
     workingDirectory: sandboxConfig.workingDirectory,
-    stackSize: sandboxConfig.stackSize || sandboxConfig.memory
+    stackSize: sandboxConfig.stackSize || sandboxConfig.memory,
+    cpuAffinity: resolveSandboxCpuAffinity(sandboxConfig.cpuAffinity)
   };
 
   const sandbox = Sandbox.startSandbox(sandboxParameter);

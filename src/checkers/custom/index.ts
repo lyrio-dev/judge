@@ -1,6 +1,6 @@
 import { SandboxResult } from "simple-sandbox";
 
-import { runSandbox, SANDBOX_INSIDE_PATH_BINARY } from "@/sandbox";
+import { CpuAffinityStrategy, runSandbox, SANDBOX_INSIDE_PATH_BINARY } from "@/sandbox";
 import { CompileResultSuccess } from "@/compile";
 import getLanguage from "@/languages";
 import { ConfigurationError } from "@/error";
@@ -106,7 +106,8 @@ export async function runCustomChecker(
             mappedPath: workingDirectory,
             readOnly: false
           }
-        ]
+        ],
+        cpuAffinity: CpuAffinityStrategy.Checker
       })
   );
 }
