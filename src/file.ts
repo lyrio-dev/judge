@@ -1,7 +1,6 @@
 import fs from "fs";
 import crypto from "crypto";
 
-import axios from "axios";
 import Queue from "promise-queue";
 import winston from "winston";
 import LRUCache from "lru-cache";
@@ -9,7 +8,7 @@ import LRUCache from "lru-cache";
 import config from "./config";
 import rpc from "./rpc";
 import * as fsNative from "./fsNative";
-import { safelyJoinPath } from "./utils";
+import { download, safelyJoinPath } from "./utils";
 
 const downloadingFiles: Map<string, Promise<void>> = new Map();
 const queue = new Queue(config.maxConcurrentDownloads, Infinity);
@@ -18,7 +17,6 @@ async function fileExists(fileUuid: string): Promise<boolean> {
   return await fsNative.exists(safelyJoinPath(config.dataStore, fileUuid));
 }
 
-// TODO: check download speed
 async function downloadFile(url: string, fileUuid: string) {
   winston.info(`Downloading file ${fileUuid} from server`);
   const tempDir = safelyJoinPath(config.dataStore, "temp");
@@ -26,50 +24,7 @@ async function downloadFile(url: string, fileUuid: string) {
 
   const tempFilename = safelyJoinPath(tempDir, fileUuid);
 
-  for (let retry = config.downloadRetry - 1; retry >= 0; retry--) {
-    const fileStream = fs.createWriteStream(safelyJoinPath(tempDir, fileUuid));
-    const abortController = new AbortController();
-
-    const response = await axios({
-      url,
-      responseType: "stream",
-      signal: abortController.signal
-    });
-
-    const timeoutTimer = setTimeout(() => {
-      abortController.abort();
-    }, config.downloadTimeout);
-
-    response.data.pipe(fileStream);
-
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const finish = (callback: () => void) => {
-          clearTimeout(timeoutTimer);
-          callback();
-        };
-
-        fileStream.on("finish", () => finish(resolve));
-        fileStream.on("error", () => finish(reject));
-      });
-
-      // Download success!
-      break;
-    } catch (e) {
-      if (retry !== 0) continue;
-
-      if (abortController.signal.aborted) {
-        throw new Error(
-          `Failed to download file ${fileUuid}: timed-out after ${config.downloadTimeout}ms for ${config.downloadRetry} times`
-        );
-      }
-
-      // Failed
-      throw e;
-    } finally {
-      fileStream.close();
-    }
-  }
+  await download(url, tempFilename, `testdata file ${fileUuid}`);
 
   const persistFilename = safelyJoinPath(config.dataStore, fileUuid);
   await fs.promises.rename(tempFilename, persistFilename);

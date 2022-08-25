@@ -331,9 +331,9 @@ export default async function onSubmission<JudgeInfo, SubmissionContent, Testcas
     task.reportProgressRaw({
       progressType: SubmissionProgressType.Finished,
       status: isConfigurationError ? SubmissionStatus.ConfigurationError : SubmissionStatus.SystemError,
-      systemMessage: isConfigurationError ? e.originalMessage : e.stack
+      systemMessage: isConfigurationError ? e.originalMessage : e.stack || String(e)
     });
-    if (!isConfigurationError) winston.error(`Error on submission task ${task.taskId}, ${e.stack}`);
+    if (!isConfigurationError) winston.error(`Error on submission task ${task.taskId}, ${e.stack || e}`);
   } finally {
     // Remove downloaded submission file
     if (task.file) task.file.dispose();

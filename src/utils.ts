@@ -2,7 +2,11 @@ import fs from "fs";
 import crypto from "crypto";
 import { join, normalize } from "path";
 
+import axios from "axios";
+import AgentKeepAlive from "agentkeepalive";
+
 import * as fsNative from "./fsNative";
+import config from "./config";
 
 export interface MappedPath {
   outside: string;
@@ -120,3 +124,62 @@ export function merge<K extends Key, V>(baseRecord: OverridableRecord<K, V>, ove
   });
   return result;
 }
+
+// TODO: check download speed
+export const download = (() => {
+  const agentOptions: AgentKeepAlive.HttpOptions & AgentKeepAlive.HttpsOptions = {
+    timeout: 60 * 60 * 1000
+  };
+
+  const httpAgent = new AgentKeepAlive(agentOptions);
+  const httpsAgent = new AgentKeepAlive.HttpsAgent(agentOptions);
+
+  return async (url: string, destination: string, description: string) => {
+    for (let retry = config.downloadRetry - 1; retry >= 0; retry--) {
+      const fileStream: fs.WriteStream = fs.createWriteStream(destination);
+      const abortController = new AbortController();
+
+      try {
+        const response = await axios({
+          url,
+          responseType: "stream",
+          signal: abortController.signal,
+          httpAgent,
+          httpsAgent
+        });
+
+        const timeoutTimer = setTimeout(() => {
+          abortController.abort();
+        }, config.downloadTimeout);
+
+        response.data.pipe(fileStream);
+
+        await new Promise<void>((resolve, reject) => {
+          const finish = (callback: () => void) => {
+            clearTimeout(timeoutTimer);
+            callback();
+          };
+
+          fileStream.on("finish", () => finish(resolve));
+          fileStream.on("error", () => finish(reject));
+        });
+
+        // Download success!
+        break;
+      } catch (e) {
+        if (retry !== 0) continue;
+
+        if (abortController.signal.aborted) {
+          throw new Error(
+            `Failed to download ${description}: timed-out after ${config.downloadTimeout}ms for ${config.downloadRetry} times`
+          );
+        }
+
+        // Failed
+        throw new Error(`Failed to download ${description}: ${e}`);
+      } finally {
+        fileStream.close();
+      }
+    }
+  };
+})();

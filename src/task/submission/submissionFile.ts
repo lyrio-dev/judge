@@ -1,12 +1,11 @@
 import fs from "fs";
 import { tmpdir } from "os";
 
-import axios from "axios";
 import winston from "winston";
 import unzipper from "unzipper";
 
 import { serverSideConfig } from "@/config";
-import { safelyJoinPath, ensureDirectoryEmpty } from "@/utils";
+import { safelyJoinPath, ensureDirectoryEmpty, download } from "@/utils";
 import * as fsNative from "@/fsNative";
 
 export interface SubmissionFileInfo {
@@ -33,35 +32,12 @@ export class SubmissionFile {
 
   private readonly downloadPromise: Promise<void>;
 
-  private disposed: boolean;
-
   constructor(fileInfo: SubmissionFileInfo) {
     // It's fine to use the uuid as filename since every submission has a different file uuid
     this.path = safelyJoinPath(tmpdir(), fileInfo.uuid);
     this.unzippedPath = safelyJoinPath(tmpdir(), `${fileInfo.uuid}_unzipped`);
 
-    // eslint-disable-next-line no-async-promise-executor
-    this.downloadPromise = axios({
-      url: fileInfo.url,
-      responseType: "stream"
-    }).then(
-      response =>
-        new Promise((resolve, reject) => {
-          if (this.disposed) {
-            resolve();
-            return;
-          }
-
-          const fileStream = fs.createWriteStream(this.path);
-
-          response.data.pipe(fileStream);
-
-          fileStream.on("finish", resolve);
-          fileStream.on("error", reject);
-
-          winston.verbose(`SubmissionFile: start downloading file ${fileInfo.uuid}`);
-        })
-    );
+    this.downloadPromise = download(fileInfo.url, this.path, "answer file");
   }
 
   async waitForDownload() {
@@ -121,8 +97,6 @@ export class SubmissionFile {
   }
 
   dispose() {
-    this.disposed = true;
-
     // No need to await
     fsNative.remove(this.path);
     fsNative.remove(this.unzippedPath);
