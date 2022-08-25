@@ -105,9 +105,9 @@ export class CompileResultSuccess implements CompileResult {
 // Use a random uuid as the key instead to prevent this
 class CompileResultCache {
   private readonly lruCache = new LruCache<string, CompileResultSuccess>({
-    max: config.binaryCacheMaxSize,
-    length: result => result.binaryDirectorySize,
-    dispose: (compileTaskHash, result) => {
+    maxSize: config.binaryCacheMaxSize,
+    sizeCalculation: result => result.binaryDirectorySize,
+    dispose: (result, compileTaskHash) => {
       winston.verbose(`dispose() from compile result cache: ${compileTaskHash}`);
       setImmediate(() => {
         // It's safe NOT to await it..
