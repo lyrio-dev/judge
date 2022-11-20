@@ -67,6 +67,10 @@ export class Config {
   @IsString()
   serverUrl: string;
 
+  @IsString()
+  @IsOptional()
+  downloadEndpointOverride?: string;
+
   @IsBase64()
   @Length(40)
   @IsString()

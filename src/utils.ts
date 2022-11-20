@@ -134,7 +134,15 @@ export const download = (() => {
   const httpAgent = new AgentKeepAlive(agentOptions);
   const httpsAgent = new AgentKeepAlive.HttpsAgent(agentOptions);
 
-  return async (url: string, destination: string, description: string) => {
+  return async (originalUrlString: string, destination: string, description: string) => {
+    let url = originalUrlString;
+    if (config.downloadEndpointOverride) {
+      const originalUrl = new URL(originalUrlString);
+      const overrideUrl = new URL(config.downloadEndpointOverride);
+      overrideUrl.pathname = originalUrl.pathname;
+      overrideUrl.search = originalUrl.search;
+      url = overrideUrl.toString();
+    }
     for (let retry = config.downloadRetry - 1; retry >= 0; retry--) {
       const fileStream: fs.WriteStream = fs.createWriteStream(destination);
       const abortController = new AbortController();

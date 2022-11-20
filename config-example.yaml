@@ -1,4 +1,5 @@
 serverUrl: http://lyrio.test/
+downloadEndpointOverride: null
 key: 40uXJPXzuO2Ha41iuh8Pjw1h0ahvP9i/zJk7Rtn/
 dataStore: /root/judge/data
 binaryCacheStore: /root/judge/cache
