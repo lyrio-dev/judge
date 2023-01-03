@@ -4,6 +4,7 @@ import { join, normalize } from "path";
 
 import axios from "axios";
 import AgentKeepAlive from "agentkeepalive";
+import streamToString from "stream-to-string";
 
 import * as fsNative from "./fsNative";
 import config from "./config";
@@ -184,7 +185,8 @@ export const download = (() => {
         }
 
         // Failed
-        throw new Error(`Failed to download ${description}: ${e}`);
+        const errorBody = axios.isAxiosError(e) ? await streamToString(e.response.data as any) : null;
+        throw new Error(`Failed to download ${description}: ${e}` + (errorBody ? "\n\n" + errorBody + "\n\n" : ""));
       } finally {
         fileStream.close();
       }
